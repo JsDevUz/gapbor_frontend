@@ -1,0 +1,126 @@
+.lives-box-wrapper {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  /* max-width: 318px; */
+  overflow: hidden;
+  justify-content: start;
+}
+.live-box {
+  max-width: 300px;
+  padding: 20px 10px 10px;
+  min-height: 100px;
+  justify-content: space-between;
+  border-radius: 10px;
+  background-color: antiquewhite;
+  margin: 10px;
+  display: flex;
+  flex-direction: column;
+}
+.live-box-header {
+}
+.live-title{
+    color: black;
+    font-style: italic;
+    font-size: 17px;
+    font-weight: bold;
+}
+.live-box-footer {
+  display: flex;
+}
+.live-creator-detail {
+  display: flex;
+  align-items: center;
+}
+.live-creator-sercle-img {
+  width: 30px;
+  height: 30px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.live-member-list {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+.live-creator-name{
+    color: black;
+    margin: 0 5px;
+}
+.live-memeber-sercle-img {
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  margin: 0 2px;
+}
+/* zone */
+.live-zone{
+    display: flex;
+    height: 100vh;
+    flex-direction: column;
+
+}
+.livezone-users{
+    flex: 2;
+}
+.livezone-chats{
+    flex: 1;
+}
+.livezone-footer{
+    /* flex: 1; */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.livezone-comment-input{
+    /* flex: 8; */
+}
+.rise-hand-icon{
+    /* flex: 1; */
+    /* padding: 5px 5px 5px 20px; */
+    background-color: #6a6a6a;
+    color: white;
+    border-top-left-radius: 50%;
+    border-bottom-left-radius: 50%;
+    /* width: 40px; */
+    /* height: 40px; */
+}
+.live-zone-members-list{
+    display: flex;
+    flex-wrap: wrap;
+}
+.live-zone-one-person{
+    width: 100px;
+    height: 100px;
+    overflow: hidden;
+    position: relative;
+    align-items: center;
+    justify-content: center;
+    display: flex;
+    flex-direction: column;
+}
+.live-zone-one-person-pic-wrapper{
+    position: relative;
+}
+.live-zone-one-person-pic{
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+}
+.live-zone-one-person-country-pic{
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    position: absolute;
+    bottom: 10px;
+    left: 0px;
+}
+.live-zone-one-person-name{
+    color: aliceblue;
+    font-size: 16px;
+    font-weight: bold;
+}
+.live-zone-one-person{}
+.live-zone-one-person{}
+.live-zone-one-person{}
+

@@ -1,0 +1,171 @@
+.h-full {
+  height: 100vh;
+}
+.h-50 {
+  height: 50px;
+}
+.w-full {
+  width: 100%;
+}
+.mw-full {
+  max-width: 100%;
+}
+.ellips-width {
+  max-width: calc(100% - 80px);
+}
+.overflow-hidden {
+  overflow: hidden;
+}
+.ellips {
+  overflow: hidden;
+  width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.column {
+  display: flex;
+  flex-direction: column;
+}
+.row {
+  display: flex;
+  flex-direction: row;
+}
+.x-y-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.y-center {
+  display: flex;
+  align-items: center;
+}
+.fs-12 {
+  font-size: 12px;
+}
+.fs-14 {
+  font-size: 14px;
+}
+.fs-16 {
+  font-size: 16px;
+}
+.fs-17 {
+  font-size: 17px;
+}
+.fs-18 {
+  font-size: 18px;
+}
+.fs-20 {
+  font-size: 20px;
+}
+
+.br-10 {
+  border-radius: 10px;
+}
+.br-4 {
+  border-radius: 4px;
+}
+.br-5 {
+  border-radius: 5px;
+}
+.br-50 {
+  border-radius: 50%;
+}
+.bold {
+  font-weight: bold;
+}
+
+.fw-500 {
+  font-weight: 500;
+}
+.color-dark {
+  color: var(--color-dark-nav-menu-background);
+}
+.capitalize {
+  text-transform: capitalize;
+}
+.uppercase {
+  text-transform: uppercase;
+}
+.nowrap {
+  white-space: nowrap;
+}
+.text-center {
+  text-align: center;
+}
+.mg-auto {
+  margin: auto;
+}
+.mg-t-40 {
+  margin-top: 40px;
+}
+.mg-t-10 {
+  margin-top: 10px;
+}
+.mg-b-20 {
+  margin-bottom: 20px;
+}
+.mg-y-20 {
+  margin: 20px 0;
+}
+.mg-r-10 {
+  margin-right: 10px;
+}
+.mg-l-10 {
+  margin-left: 10px;
+}
+.mg-l-20 {
+  margin-left: 20px;
+}
+.mg-b-5 {
+  margin-bottom: 5px;
+}
+.pd-0 {
+  padding: 0;
+}
+.pd-10 {
+  padding: 10px;
+}
+.pd-5 {
+  padding: 5px;
+}
+.pd-20 {
+  padding: 20px;
+}
+.pd-5-20 {
+  padding: 5px 20px;
+}
+.btn {
+  color: #fff;
+  border: none;
+  background-color: var(--brand--color);
+  padding: 5px 10px;
+  height: 36px;
+  border-radius: 5px;
+  font-size: 14px;
+  font-weight: 600;
+  align-items: start;
+  display: block;
+  cursor: pointer;
+  min-width: 50px;
+}
+.btn.success {
+  background-color: #45b36b;
+  color: #fff;
+}
+.btn.brand {
+  background-color: var(--color-default);
+  color: #fff;
+}
+
+.btn.def {
+  background-color: transparent;
+  color: #fff;
+}
+
+.btn.light {
+  background-color: transparent;
+  color: #000;
+}
+.white {
+  color: #fff;
+}

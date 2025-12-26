@@ -1,0 +1,100 @@
+body {
+  padding: 0;
+  margin: 0;
+  background-color: var(--color-dark-background);
+  -moz-user-select: none; /* firefox */
+  -webkit-user-select: none; /* Safari */
+  -ms-user-select: none; /* IE */
+  user-select: none; /* Standard syntax */
+}
+* {
+  box-sizing: border-box;
+}
+a {
+  outline-style: none;
+  text-decoration: none;
+  color: inherit;
+  display: contents;
+}
+.custom-image {
+  min-width: 10px;
+}
+
+:root {
+  --color-white: rgb(255, 255, 255);
+  --color-black: rgb(0, 0, 0);
+  --color-green: #00ff00;
+
+  --color-dark-nav-menu-background: rgb(30, 31, 34);
+  --color-light-nav-menu-background: rgb(227, 229, 232);
+
+  --color-light-nav-menu-icon-bgcolor: rgb(255, 255, 255);
+  --color-dark-nav-menu-icon-bgcolor: rgb(43, 45, 49);
+
+  --color-dark-nav-menu-icon-color: rgb(255, 255, 255);
+  --color-light-nav-menu-icon-color: rgb(34, 165, 89);
+
+  --color-light-chats-warpper-bgcolor: rgb(242, 243, 245);
+  --color-dark-chats-warpper-bgcolor: rgb(43, 45, 49);
+
+  --color-dark-searchbar-bgcolor: rgb(30, 31, 34);
+  --color-light-searchbar-bgcolor: rgb(227, 229, 232);
+
+  --color-light-searchbar-text-color: rgb(48, 50, 55);
+  --color-dark-searchbar-text-color: rgb(227, 229, 232);
+
+  --color-dark-searchbar-icon-color: rgb(227, 229, 232);
+  --color-light-searchbar-icon-color: rgb(48, 50, 55);
+
+  --color-light-message-row-selected-bgcolor: rgb(215, 217, 220);
+  --color-dark-message-row-selected-bgcolor: rgb(64, 66, 73);
+
+  --color-dark-message-user-name-color: rgb(255, 255, 255);
+  --color-light-message-user-name-color: rgb(48, 50, 55);
+
+  --color-light-message-user-date-color: rgb(201, 201, 201);
+  --color-dark-message-user-date-color: rgb(201, 201, 201);
+
+  --color-dark-message-user-lastmessage-color: rgb(150, 150, 150);
+  --color-light-message-user-lastmessage-color: rgb(150, 150, 150);
+
+  --color-light-one-chat-wrapper-bgcolor: rgb(255, 255, 255);
+  --color-dark-one-chat-wrapper-bgcolor: rgb(49, 51, 56);
+
+  --color-dark-one-chat-header-bgcolor: rgb(49, 51, 56);
+  --color-light-one-chat-header-bgcolor: rgb(255, 255, 255);
+
+  --color-light-one-chat-header-bbcolor: rgb(227, 229, 232);
+  --color-dark-one-chat-header-bbcolor: rgb(30, 31, 34);
+
+  --color-dark-one-chat-name-color: rgb(255, 255, 255);
+  --color-light-one-chat-name-color: rgb(48, 50, 55);
+
+  --color-dark-one-chat-text-wrapper-bgcolor: rgb(49, 51, 56);
+  --color-light-one-chat-text-wrapper-bgcolor: rgb(255, 255, 255);
+
+  --color-dark-one-chat-one-message-textwrapper-bgcolor: rgb(64, 66, 73);
+  --color-light-one-chat-one-message-textwrapper-bgcolor: rgb(235, 235, 239);
+
+  --color-light-one-chat-one-message-color: rgb(235, 235, 239);
+  --color-dark-one-chat-one-message-color: rgb(220, 222, 224);
+
+  --color-dark-one-chat-bottom-wrapper-bgcolor: rgb(56, 58, 64);
+  --color-light-one-chat-bottom-wrapper-bgcolor: rgb(235, 235, 239);
+
+  --color-dark-buble-bgcolor: rgb(17 17 17 / 70%);
+  --color-light-buble-bgcolor: rgb(255 255 255);
+
+  --color-light-buble-shwcolor: rgb(114 114 114 / 25%);
+  --color-dark-buble-shwcolor: rgb(26 26 26 / 37%);
+
+  --color-dark-buble-color: rgb(242, 243, 245);
+  --color-light-buble-color: rgb(112, 117, 121);
+
+  --color-dark-default-text: rgb(242, 243, 245);
+  --color-light-default-text: rgb(48, 50, 55);
+
+  --color-nav-menu-active: rgb(88, 100, 242);
+
+  --color-default: rgb(88, 100, 242);
+}

@@ -1,0 +1,140 @@
+.main.light {
+  background-color: var(--color-light-one-chat-wrapper-bgcolor);
+}
+.light .nav-bar-wrapper {
+  background-color: var(--color-light-nav-menu-background);
+}
+.light .icon {
+  background-color: var(--color-light-nav-menu-icon-bgcolor);
+  color: var(--color-light-nav-menu-icon-color);
+}
+.light .icon.active {
+  background-color: var(--color-nav-menu-active);
+  color: var(--color-white) !important;
+}
+
+.light .chats-wrapper {
+  background: var(--color-light-chats-warpper-bgcolor);
+}
+
+.light .searchbar {
+  background-color: var(--color-light-searchbar-bgcolor);
+}
+.light .search-icon {
+  color: var(--color-light-searchbar-icon-color);
+}
+.light .search-text {
+  color: var(--color-light-searchbar-text-color);
+}
+.light .message-row.selected {
+  background: var(--color-light-message-row-selected-bgcolor);
+}
+.light .message-user-logo.online::before {
+  border: 5px solid var(--color-green);
+}
+
+.light .message-user-name {
+  color: var(--color-light-default-text);
+}
+.light .message-user-last-message {
+  color: var(--color-light-message-user-lastmessage-color);
+}
+.light .message-date {
+  color: var(--color-light-default-text);
+}
+
+/*  */
+.light .one-chat-wrapper {
+  background-color: var(--color-light-one-chat-wrapper-bgcolor);
+}
+.light .one-chat-header {
+  background-color: var(--color-light-one-chat-header-bgcolor);
+  color: var(--color-light-one-chat-name-color);
+  border-bottom: 1px solid var(--color-light-one-chat-header-bbcolor);
+}
+.light .one-chat-name {
+  color: var(--color-light-one-chat-name-color);
+}
+.light .one-chat-action {
+  color: var(--color-default);
+}
+.light .typing-text {
+  color: var(--color-default);
+}
+.light .one-chat-messages-wrapper {
+  background-color: var(--color-light-one-chat-header-bgcolor);
+}
+.light .one-chat-one-message {
+  color: var(--color-light-one-chat-one-message-color);
+}
+
+.light .onechat-one-message-text-header {
+  color: var(--color-light-one-chat-name-color);
+}
+.light .onechat-one-message-text-wrapper {
+  background: var(--color-light-one-chat-one-message-textwrapper-bgcolor);
+}
+.light .onechat-one-message-text-wrapper::before {
+  border-color: transparent transparent
+    var(--color-light-one-chat-one-message-textwrapper-bgcolor) transparent;
+}
+.light .bubble-reactions {
+  background: var(--color-light-buble-bgcolor);
+  box-shadow: 0 0.25rem 0.5rem 0.125rem var(--color-light-buble-shwcolor);
+  color: var(--color-light-buble-color);
+}
+
+.light .one-chat-one-message-message {
+  color: var(--color-light-default-text);
+}
+.light .one-chat-one-message-date {
+  color: var(--color-light-default-text);
+}
+.light .replayed-message {
+  border-left: 5px solid var(--color-default);
+  color: var(--color-light-default-text);
+}
+.light .replayed-message-user {
+  color: var(--color-light-default-text);
+}
+/*  */
+.light .addition-div {
+  color: var(--color-black);
+}
+
+.light .replay-user {
+  color: var(--color-default);
+}
+.light .one-chat-bottom-wrapper {
+  color: var(--color-default);
+  background-color: var(--color-light-one-chat-bottom-wrapper-bgcolor);
+}
+
+.light .one-chat-bottom textarea {
+  color: var(--color-light-default-text);
+  background-color: var(--color-light-one-chat-bottom-wrapper-bgcolor);
+}
+.message-user-logo.group::before {
+  border: none !important;
+}
+.light .nochat {
+  color: var(--color-light-message-user-lastmessage-color);
+}
+.light .search-result {
+  background-color: var(--color-light-chats-warpper-bgcolor);
+}
+.custom-dialog-container .dialog {
+  /* background-color: var(--color-light-buble-bgcolor) !important; */
+}
+.light .settingsPage {
+  color: #000 !important;
+}
+.light .editProfile input {
+  color: #000 !important;
+}
+.light .settings-header {
+  border-bottom: 1px solid #d2d2d2 !important;
+}
+.light .settingsPage .btn.def {
+  color: #000 !important;
+}
