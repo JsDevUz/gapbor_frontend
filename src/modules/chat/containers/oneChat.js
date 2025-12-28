@@ -80,6 +80,7 @@ const OneChat = (props) => {
     console.log(webrtcService,socket);
     
     // Global WebRTC service ni yaratish
+    //ff
     if (!webrtcService.current) {
       webrtcService.current = new WebRTCService(socket);
       
