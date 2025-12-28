@@ -36,13 +36,21 @@ class WebRTCService {
       console.log('Getting user media with constraints:', constraints);
       this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
       
-      // Stream tracks ni tekshirish
+      // Stream tracks ni tekshirish va enable qilish
       console.log('Local stream tracks:', this.localStream.getTracks().map(track => ({
         kind: track.kind,
         label: track.label,
         enabled: track.enabled,
         muted: track.muted
       })));
+      
+      // Agar track disabled bo'lsa, enable qilish
+      this.localStream.getTracks().forEach(track => {
+        if (!track.enabled) {
+          console.log(`Enabling ${track.kind} track`);
+          track.enabled = true;
+        }
+      });
       
       return this.localStream;
     } catch (error) {
@@ -90,7 +98,8 @@ class WebRTCService {
     if (this.localStream) {
       console.log('Adding local tracks to peer connection');
       this.localStream.getTracks().forEach(track => {
-        console.log(`Adding ${track.kind} track:`, track.label);
+        console.log(`Adding ${track.kind} track:`, track.label, 'enabled:', track.enabled);
+        // addTrack(track, stream) - ikkinchi parametr stream kerak
         this.peerConnection.addTrack(track, this.localStream);
       });
     } else {

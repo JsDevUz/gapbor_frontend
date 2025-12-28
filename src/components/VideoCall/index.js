@@ -268,10 +268,24 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
   }, [socket, externalWebrtcService]);
 
   useEffect(() => {
+    // Local video ni o'rnatish
     if (isInCall && localVideoRef.current && webrtcService.current) {
       const stream = webrtcService.current.localStream;
       if (stream) {
         localVideoRef.current.srcObject = stream;
+        
+        // Track holatini UI ga sinxronizatsiya qilish
+        const videoTrack = stream.getVideoTracks()[0];
+        const audioTrack = stream.getAudioTracks()[0];
+        
+        if (videoTrack) {
+          setIsVideoEnabled(videoTrack.enabled);
+          console.log('Video track enabled:', videoTrack.enabled);
+        }
+        if (audioTrack) {
+          setIsAudioEnabled(audioTrack.enabled);
+          console.log('Audio track enabled:', audioTrack.enabled);
+        }
       }
     }
   }, [isInCall]);
@@ -410,6 +424,7 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
     if (webrtcService.current) {
       const enabled = webrtcService.current.toggleVideo();
       setIsVideoEnabled(enabled);
+      console.log('Video toggled to:', enabled);
     }
   };
 
@@ -417,6 +432,7 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
     if (webrtcService.current) {
       const enabled = webrtcService.current.toggleAudio();
       setIsAudioEnabled(enabled);
+      console.log('Audio toggled to:', enabled);
     }
   };
 
