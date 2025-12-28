@@ -15,9 +15,35 @@ class WebRTCService {
     };
   }
 
-  async getUserMedia(constraints = { video: true, audio: true }) {
+  async getUserMedia(constraints = null) {
     try {
+      // Agar constraints berilmagan bo'lsa, default qilib o'rnatish
+      if (!constraints) {
+        constraints = {
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'user'
+          },
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        };
+      }
+
+      console.log('Getting user media with constraints:', constraints);
       this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+      
+      // Stream tracks ni tekshirish
+      console.log('Local stream tracks:', this.localStream.getTracks().map(track => ({
+        kind: track.kind,
+        label: track.label,
+        enabled: track.enabled,
+        muted: track.muted
+      })));
+      
       return this.localStream;
     } catch (error) {
       console.error('Error accessing media devices:', error);
@@ -26,6 +52,7 @@ class WebRTCService {
   }
 
   createPeerConnection() {
+    console.log('Creating peer connection...');
     this.peerConnection = new RTCPeerConnection({
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -35,6 +62,7 @@ class WebRTCService {
 
     this.peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
+        console.log('ICE candidate generated:', event.candidate);
         this.socket.emit('call:ice-candidate', {
           receiverId: this.remoteUserId,
           callId: this.callId,
@@ -45,16 +73,28 @@ class WebRTCService {
 
     this.peerConnection.ontrack = (event) => {
       console.log('Remote stream received:', event.streams[0]);
+      console.log('Remote stream tracks:', event.streams[0].getTracks().map(track => ({
+        kind: track.kind,
+        label: track.label,
+        enabled: track.enabled,
+        muted: track.muted
+      })));
+      
       this.remoteStream = event.streams[0];
       if (this.onRemoteStream) {
         this.onRemoteStream(this.remoteStream);
       }
     };
 
+    // Local stream tracks ni peer connection ga qo'shish
     if (this.localStream) {
+      console.log('Adding local tracks to peer connection');
       this.localStream.getTracks().forEach(track => {
+        console.log(`Adding ${track.kind} track:`, track.label);
         this.peerConnection.addTrack(track, this.localStream);
       });
+    } else {
+      console.warn('No local stream available when creating peer connection');
     }
   }
 
@@ -120,16 +160,26 @@ console.log('call:initiate qilindi yuboruvchidan');
 
   async handleOffer(offerData) {
     try {
+      console.log('Handling offer:', offerData);
+      
       if (!this.peerConnection) {
         await this.getUserMedia();
         this.createPeerConnection();
       }
 
+      // RemoteUserId ni o'rnatish kerak (agar yo'q bo'lsa)
+      if (!this.remoteUserId && offerData.callerId) {
+        this.remoteUserId = offerData.callerId;
+      }
+
+      console.log('Setting remote description');
       await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offerData.offer));
       
+      console.log('Creating answer');
       const answer = await this.peerConnection.createAnswer();
       await this.peerConnection.setLocalDescription(answer);
 
+      console.log('Sending answer');
       this.socket.emit('call:answer', {
         receiverId: this.remoteUserId,
         callId: this.callId,
@@ -140,6 +190,7 @@ console.log('call:initiate qilindi yuboruvchidan');
 
       // Saqlangan ICE candidatelarni qo'shish
       if (this.pendingIceCandidates && this.pendingIceCandidates.length > 0) {
+        console.log('Adding pending ICE candidates');
         for (const candidate of this.pendingIceCandidates) {
           try {
             await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate.candidate));
@@ -158,17 +209,21 @@ console.log('call:initiate qilindi yuboruvchidan');
 
   async handleAnswer(answerData) {
     try {
+      console.log('Handling answer:', answerData);
+      
       // Agar peerConnection bo'lmasa, yaratamiz
       if (!this.peerConnection) {
         await this.getUserMedia();
         this.createPeerConnection();
       }
       
+      console.log('Setting remote description from answer');
       await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answerData.answer));
       this.isCallActive = true;
 
       // Saqlangan ICE candidatelarni qo'shish
       if (this.pendingIceCandidates && this.pendingIceCandidates.length > 0) {
+        console.log('Adding pending ICE candidates after answer');
         for (const candidate of this.pendingIceCandidates) {
           try {
             await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate.candidate));
