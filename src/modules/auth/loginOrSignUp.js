@@ -1,3 +1,5 @@
+
+
 import { useGoogleLogin } from "@react-oauth/google";
 import axios from "axios";
 import useGetMe from "hooks/useGetMe";
@@ -12,10 +14,13 @@ import { FiMail, FiLock } from "react-icons/fi";
 
 export const LoginOrSignup = () => {
   const [err, setErr] = useState([]);
-  const [loginMethod, setLoginMethod] = useState('google'); // 'google' or 'email'
+  const [loginMethod, setLoginMethod] = useState('google'); // 'google', 'email', or 'token'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [token, setToken] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false); // login or register mode
   const navigate = useNavigate();
   const { setMe } = useGetMe();
   const socketLogin = (res) => {
@@ -42,8 +47,8 @@ export const LoginOrSignup = () => {
   };
 
   const emailLogin = async () => {
-    if (!email || !password) {
-      setErr({ message: "Email va passwordni kiriting" });
+    if (!email || !password || (isRegistering && !fullName)) {
+      setErr({ message: isRegistering ? "Barcha maydonlarni to'ldiring" : "Email va passwordni kiriting" });
       return;
     }
 
@@ -51,21 +56,55 @@ export const LoginOrSignup = () => {
     setErr([]);
 
     try {
-      const response = await axios.post('http://localhost:5001/api/auth/login', {
-        email,
-        password
-      });
+      const url = isRegistering ? 'http://192.168.100.253:5001/api/auth/register' : 'http://192.168.100.253:5001/api/auth/login';
+      const body = isRegistering ? { email, password, fullName } : { email, password };
+      
+      const response = await axios.post(url, body);
 
       if (response.data.isOk) {
         setKey("token", response.data.token);
         setMe(response.data.user);
         navigate("/");
       } else {
-        setErr({ message: response.data.message || "Login xatoligi" });
+        setErr({ message: response.data.message || "Xatolik" });
       }
     } catch (error) {
-      console.error("Email login error:", error);
-      setErr({ message: "Server xatoligi, qayta urinib ko'ring" });
+      console.error("Email auth error:", error);
+      const errorMessage = error.response?.data?.message || `Server xatoligi, qayta urinib ko'ring ${error}`;
+      setErr({ message: errorMessage });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const tokenLogin = async () => {
+    if (!token) {
+      setErr({ message: "JWT tokenni kiriting" });
+      return;
+    }
+
+    setLoading(true);
+    setErr([]);
+
+    try {
+      // Token bilan user ma'lumotlarini olish
+      const response = await axios.post('http://192.168.100.253:5001/1/api/auth/getme', {}, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.data) {
+        setKey("token", token);
+        setMe(response.data);
+        navigate("/");
+      } else {
+        setErr({ message: `Noto'g'ri token ${response.data}` });
+      }
+    } catch (error) {
+      console.error("Token auth error:", error);
+      const errorMessage = error.response?.data?.message || `Noto'g'ri token, qayta urinib ko'ring ${error}`;
+      setErr({ message: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -107,6 +146,12 @@ export const LoginOrSignup = () => {
           >
             Email
           </button>
+          <button 
+            className={`tab-btn ${loginMethod === 'token' ? 'active' : ''}`}
+            onClick={() => setLoginMethod('token')}
+          >
+            Token
+          </button>
         </div>
 
         {loginMethod === 'google' ? (
@@ -118,12 +163,67 @@ export const LoginOrSignup = () => {
               <FcGoogle size={30} /> Google orqali kirish
             </div>
           </>
+        ) : loginMethod === 'token' ? (
+          <>
+            <span className="fs-17 mg-t-10 mg-b-20">
+              JWT token bilan kirishingiz mumkin
+            </span>
+            <div className="email-login-form">
+              <div className="input-group">
+                <FiLock className="input-icon" />
+                <textarea
+                  placeholder="JWT tokenni shu yerga kiriting..."
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  className="login-input token-textarea"
+                  rows={4}
+                  style={{ resize: 'vertical', minHeight: '80px' }}
+                />
+              </div>
+              <button 
+                className="login-btn email-login-btn" 
+                onClick={tokenLogin}
+                disabled={loading}
+              >
+                {loading ? 'Kutilmoqda...' : 'Token bilan kirish'}
+              </button>
+            </div>
+          </>
         ) : (
           <>
             <span className="fs-17 mg-t-10 mg-b-20">
               Email va parol bilan kirishingiz mumkin
             </span>
+            
+            {/* Login/Register switch */}
+            <div className="auth-switch">
+              <button 
+                className={`switch-btn ${!isRegistering ? 'active' : ''}`}
+                onClick={() => setIsRegistering(false)}
+              >
+                Kirish
+              </button>
+              <button 
+                className={`switch-btn ${isRegistering ? 'active' : ''}`}
+                onClick={() => setIsRegistering(true)}
+              >
+                Ro'yxatdan o'tish
+              </button>
+            </div>
+
             <div className="email-login-form">
+              {isRegistering && (
+                <div className="input-group">
+                  <FiMail className="input-icon" />
+                  <input
+                    type="text"
+                    placeholder="To'liq ism"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="login-input"
+                  />
+                </div>
+              )}
               <div className="input-group">
                 <FiMail className="input-icon" />
                 <input
@@ -150,7 +250,7 @@ export const LoginOrSignup = () => {
                 onClick={emailLogin}
                 disabled={loading}
               >
-                {loading ? 'Kirilmoqda...' : 'Kirish'}
+                {loading ? 'Kutilmoqda...' : (isRegistering ? "Ro'yxatdan o'tish" : 'Kirish')}
               </button>
             </div>
           </>

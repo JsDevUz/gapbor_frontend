@@ -1,4 +1,8 @@
 # Getting Started with Create React App
+n6WNUpCcxdJJBKlO
+jsdev
+mongodb+srv://jsdev:n6WNUpCcxdJJBKlO@cluster0.laasihv.mongodb.net/?appName=Cluster0
+MONGO_URI=mongodb+srv://jsdev:n6WNUpCcxdJJBKlO@cluster0.laasihv.mongodb.net/gapbor?retryWrites=true&w=majority
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import WebRTCService from '../../services/webrtc.service';
 import { FiVideo, FiVideoOff, FiMic, FiMicOff, FiPhone, FiPhoneIncoming } from 'react-icons/fi';
+import useModal from 'hooks/useModal';
 
 const VideoCallContainer = styled.div`
   position: fixed;
@@ -151,6 +152,8 @@ const CallButtons = styled.div`
 
 const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, webrtcService: externalWebrtcService }) => {
   const [isInCall, setIsInCall] = useState(false);
+    const { setChats, setToast, chats, selectChat, setSelectChat } = useModal();
+  
   const [isIncomingCall, setIsIncomingCall] = useState(false);
   const [isWaitingForAnswer, setIsWaitingForAnswer] = useState(false);
   const [callerInfo, setCallerInfo] = useState(null);
@@ -304,6 +307,23 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
     console.log('receiverId',receiverId,'currentUser',currentUser,"o'rtasida aloqa o'rnatish boshlandi");
     
     try {
+      // Media qurilmalari mavjudligini tekshirish
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        // HTTP da ishlash uchun vaqtinchalik yechim
+        console.warn('Media qurilmalari HTTP da cheklangan. HTTPS tavsiya etiladi.');
+        
+        // getUserMedia ni chaqirishga harakat qilish
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: true, 
+            audio: true 
+          });
+          stream.getTracks().forEach(track => track.stop());
+        } catch (mediaError) {
+          throw new Error("Kamera yoki mikrofon ruxsati kerak. Iltimos, HTTPS orqali ulaning yoki brauzer sozlamalaridan ruxsat bering.");
+        }
+      }
+      
       setIsWaitingForAnswer(true);
       const result = await webrtcService.current.initiateCall(receiverId, {
         id: currentUser._id,
@@ -313,6 +333,25 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
       console.log('muvoffaqatli yuborildi yuboruvchidan');
       
     } catch (error) {
+      let errorMessage = error.message;
+      
+      // Media qurilmalari xatoliklarini aniqlash
+      if (error.name === 'NotAllowedError') {
+        errorMessage = "Kamera yoki mikrofon ruxsati berilmagan. Iltimos, brauzer sozlamalaridan ruxsat bering.";
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = "Kamera yoki mikrofon topilmadi. Iltimos, qurilmalarni ulang.";
+      } else if (error.name === 'NotReadableError') {
+        errorMessage = "Kamera yoki mikrofon boshqa ilova tomonidan ishlatilmoqda.";
+      } else if (error.name === 'OverconstrainedError') {
+        errorMessage = "Qurilma talablarga mos kelmadi.";
+      } else if (error.name === 'TypeError') {
+        errorMessage = "HTTPS ulanish talab qilinadi. Iltimos, https://192.168.100.253:5443 orqali ulaning.";
+      }
+      
+      setToast({
+        toast: true,
+        text: errorMessage,
+      });
       console.error('Error initiating call:', error);
       setIsWaitingForAnswer(false);
     }
