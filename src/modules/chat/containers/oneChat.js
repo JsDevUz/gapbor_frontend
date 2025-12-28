@@ -97,13 +97,12 @@ const OneChat = (props) => {
       });
       
       socket.on('call:offer-received', (data) => {
-        console.log('call:offer-received keldiii',data);
-        // Offer kelganda incomingCall ni yangilaymiz, shunda VideoCall ochiladi
+        console.log('call:offer-received yetib keldi oneChatga',data);
         setIncomingCall({
           callId: data.callId,
-          callerId: webrtcService.current.remoteUserId,
-          callerName: 'Incoming Call',
-          callerPic: '',
+          callerId: data.callerId,
+          callerName: data.callerName,
+          callerPic: data.callerPic,
           offer: data.offer
         });
         setShowVideoCall(true);
@@ -129,12 +128,18 @@ const OneChat = (props) => {
       
       socket.on('call:ended', (data) => {
         console.log('call:ended yetib keldi oneChatga',data);
+        if (webrtcService.current) {
+          webrtcService.current.cleanup();
+        }
         setShowVideoCall(false);
         setIncomingCall(null);
       });
       
       socket.on('call:rejected', (data) => {
         console.log('call:rejected yetib keldi oneChatga',data);
+        if (webrtcService.current) {
+          webrtcService.current.cleanup();
+        }
         setShowVideoCall(false);
         setIncomingCall(null);
       });
