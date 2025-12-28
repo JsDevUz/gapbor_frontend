@@ -1,8 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
-import styled from 'styled-components';
-import WebRTCService from '../../services/webrtc.service';
-import { FiVideo, FiVideoOff, FiMic, FiMicOff, FiPhone, FiPhoneIncoming } from 'react-icons/fi';
-import useModal from 'hooks/useModal';
+import React, { useState, useEffect, useRef } from "react";
+import styled from "styled-components";
+import WebRTCService from "../../services/webrtc.service";
+import {
+  FiVideo,
+  FiVideoOff,
+  FiMic,
+  FiMicOff,
+  FiPhone,
+  FiPhoneIncoming,
+} from "react-icons/fi";
+import useModal from "hooks/useModal";
 
 const VideoCallContainer = styled.div`
   position: fixed;
@@ -25,7 +32,7 @@ const VideoGrid = styled.div`
   width: 90%;
   max-width: 1200px;
   height: 70vh;
-  
+
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
     height: 80vh;
@@ -78,32 +85,42 @@ const ControlButton = styled.button`
   cursor: pointer;
   transition: all 0.3s ease;
   font-size: 20px;
-  
+
   &:hover {
     transform: scale(1.1);
   }
-  
-  ${props => props.variant === 'video' && `
-    background: ${props.active ? '#4CAF50' : '#f44336'};
+
+  ${(props) =>
+    props.variant === "video" &&
+    `
+    background: ${props.active ? "#4CAF50" : "#f44336"};
+    color: white;
+  `}
+
+  ${(props) =>
+    props.variant === "audio" &&
+    `
+    background: ${props.active ? "#4CAF50" : "#f44336"};
     color: white;
   `}
   
-  ${props => props.variant === 'audio' && `
-    background: ${props.active ? '#4CAF50' : '#f44336'};
-    color: white;
-  `}
-  
-  ${props => props.variant === 'end' && `
+  ${(props) =>
+    props.variant === "end" &&
+    `
     background: #f44336;
     color: white;
   `}
   
-  ${props => props.variant === 'answer' && `
+  ${(props) =>
+    props.variant === "answer" &&
+    `
     background: #4CAF50;
     color: white;
   `}
   
-  ${props => props.variant === 'reject' && `
+  ${(props) =>
+    props.variant === "reject" &&
+    `
     background: #f44336;
     color: white;
   `}
@@ -125,19 +142,19 @@ const IncomingCallModal = styled.div`
 
 const CallerInfo = styled.div`
   margin-bottom: 20px;
-  
+
   img {
     width: 80px;
     height: 80px;
     border-radius: 50%;
     margin-bottom: 10px;
   }
-  
+
   h3 {
     margin: 10px 0 5px 0;
     color: #333;
   }
-  
+
   p {
     color: #666;
     margin: 0;
@@ -150,16 +167,23 @@ const CallButtons = styled.div`
   justify-content: center;
 `;
 
-const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, webrtcService: externalWebrtcService }) => {
+const VideoCall = ({
+  socket,
+  currentUser,
+  targetUser,
+  onClose,
+  incomingCall,
+  webrtcService: externalWebrtcService,
+}) => {
   const [isInCall, setIsInCall] = useState(false);
-    const { setChats, setToast, chats, selectChat, setSelectChat } = useModal();
-  
+  const { setChats, setToast, chats, selectChat, setSelectChat } = useModal();
+
   const [isIncomingCall, setIsIncomingCall] = useState(false);
   const [isWaitingForAnswer, setIsWaitingForAnswer] = useState(false);
   const [callerInfo, setCallerInfo] = useState(null);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
-  
+
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const webrtcService = useRef(null);
@@ -172,99 +196,43 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
     }
   }, [incomingCall]);
 
+  // WebRTC service event handlers
+  const setupWebRTCService = (service) => {
+    service.onIncomingCall = (callData) => {
+      setCallerInfo({
+        callerId: callData.callerId,
+        callerName: callData.callerName,
+        callerPic: callData.callerPic,
+      });
+      setIsIncomingCall(true);
+    };
+
+    service.onRemoteStream = (stream) => {
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = stream;
+      }
+    };
+
+    service.onCallEnded = () => {
+      handleEndCall();
+    };
+
+    service.onCallRejected = () => {
+      setIsIncomingCall(false);
+      setCallerInfo(null);
+    };
+  };
+
   useEffect(() => {
-    console.log(externalWebrtcService,socket,webrtcService.current);
-    
     // Agar tashqi WebRTC service bo'lsa, uni ishlat, aks holda yangi yarat
     if (externalWebrtcService) {
-      console.log('externalWebrtcService qisimi');
-      
       webrtcService.current = externalWebrtcService;
-      
-      // Tashqi WebRTC service uchun event handlers o'rnatish
-      externalWebrtcService.onIncomingCall = (callData) => {
-        console.log('onIncomingCall kelllldi');
-        
-        setCallerInfo({
-          callerId: callData.callerId,
-          callerName: callData.callerName,
-          callerPic: callData.callerPic
-        });
-        setIsIncomingCall(true);
-      };
-      
-      externalWebrtcService.onRemoteStream = (stream) => {
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = stream;
-        }
-      };
-      
-      externalWebrtcService.onCallEnded = () => {
-        handleEndCall();
-      };
-      
-      externalWebrtcService.onCallRejected = () => {
-        setIsIncomingCall(false);
-        setCallerInfo(null);
-      };
+      setupWebRTCService(externalWebrtcService);
     } else if (socket && !webrtcService.current) {
-      console.log('woriking');
-      
       webrtcService.current = new WebRTCService(socket);
-      console.log(webrtcService.current);
-      
-      // WebRTC event handlers
-      webrtcService.current.onIncomingCall = (callData) => {
-        console.log('onIncomingCall keldi');
-        
-        setCallerInfo(callData);
-        setIsIncomingCall(true);
-      };
-      
-      webrtcService.current.onRemoteStream = (stream) => {
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = stream;
-        }
-      };
-      
-      webrtcService.current.onCallEnded = () => {
-        handleEndCall();
-      };
-      
-      webrtcService.current.onCallRejected = () => {
-        setIsIncomingCall(false);
-        setCallerInfo(null);
-      };
-
-      // Socket event listeners
-      socket.on('call:incoming', (data) => {
-        console.log('call:incoming yetib keldi clientga',data);
-        
-        webrtcService.current.handleIncomingCall(data);
-      });
-      
-      socket.on('call:offer-received', (data) => {
-        console.log('call:offer-received yetib keldi clientga',data);
-        
-        webrtcService.current.handleOffer(data);
-      });
-      
-      socket.on('call:answered', (data) => {
-        handleAnswer(data);
-      });
-      
-      socket.on('call:ice-candidate', (data) => {
-        webrtcService.current.handleIceCandidate(data);
-      });
-      
-      socket.on('call:ended', (data) => {
-        handleEndCall();
-      });
-      
-      socket.on('call:rejected', (data) => {
-        handleRejectCall();
-      });
+      setupWebRTCService(webrtcService.current);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket, externalWebrtcService]);
 
   useEffect(() => {
@@ -273,18 +241,16 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
       const stream = webrtcService.current.localStream;
       if (stream) {
         localVideoRef.current.srcObject = stream;
-        
+
         // Track holatini UI ga sinxronizatsiya qilish
         const videoTrack = stream.getVideoTracks()[0];
         const audioTrack = stream.getAudioTracks()[0];
-        
+
         if (videoTrack) {
           setIsVideoEnabled(videoTrack.enabled);
-          console.log('Video track enabled:', videoTrack.enabled);
         }
         if (audioTrack) {
           setIsAudioEnabled(audioTrack.enabled);
-          console.log('Audio track enabled:', audioTrack.enabled);
         }
       }
     }
@@ -300,118 +266,105 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
 
   useEffect(() => {
     // Agar incomingCall bo'lsa, uni WebRTC service ga uzatish
-    if (incomingCall && webrtcService.current) {
-      // Agar offer bor bo'lsa, bu offer-received signal
-      if (incomingCall.offer) {
-        console.log('offer-received signal qabul qilinyapti');
-        webrtcService.current.handleOffer(incomingCall);
-        setIsInCall(true); // Call boshlandi
-      } else if (incomingCall.answered) {
-        // Bu call:answered signal - yuboruvchi tomondan javob keldi
-        console.log('call:answered signal qabul qilinyapti');
-        setIsInCall(true); // Qabul qiluvchi tomonida call boshlandi
-      } else {
-        // Bu call:incoming signal
-        setCallerInfo({
-          callerId: incomingCall.callerId,
-          callerName: incomingCall.callerName,
-          callerPic: incomingCall.callerPic
-        });
-        setIsIncomingCall(true);
-        
-        // WebRTC service ga uzatish
-        webrtcService.current.handleIncomingCall(incomingCall);
-      }
+    if (!incomingCall || !webrtcService.current) return;
+
+    // Agar offer bor bo'lsa, bu offer-received signal
+    if (incomingCall.offer) {
+      webrtcService.current.handleOffer(incomingCall);
+      setIsInCall(true);
+    } else if (incomingCall.answered) {
+      // Bu call:answered signal - yuboruvchi tomondan javob keldi
+      setIsInCall(true);
+    } else {
+      // Bu call:incoming signal
+      setCallerInfo({
+        callerId: incomingCall.callerId,
+        callerName: incomingCall.callerName,
+        callerPic: incomingCall.callerPic,
+      });
+      setIsIncomingCall(true);
+      webrtcService.current.handleIncomingCall(incomingCall);
     }
   }, [incomingCall]);
 
+  const getMediaErrorMessage = (error) => {
+    const errorMessages = {
+      NotAllowedError:
+        "Kamera yoki mikrofon ruxsati berilmagan. Iltimos, brauzer sozlamalaridan ruxsat bering.",
+      NotFoundError:
+        "Kamera yoki mikrofon topilmadi. Iltimos, qurilmalarni ulang.",
+      NotReadableError:
+        "Kamera yoki mikrofon boshqa ilova tomonidan ishlatilmoqda.",
+      OverconstrainedError: "Qurilma talablarga mos kelmadi.",
+      TypeError: "HTTPS ulanish talab qilinadi. Iltimos, HTTPS orqali ulaning.",
+    };
+    return errorMessages[error.name] || error.message;
+  };
+
   const handleInitiateCall = async (receiverId) => {
-    console.log('receiverId',receiverId,'currentUser',currentUser,"o'rtasida aloqa o'rnatish boshlandi");
-    
     try {
       // Media qurilmalari mavjudligini tekshirish
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        // HTTP da ishlash uchun vaqtinchalik yechim
-        console.warn('Media qurilmalari HTTP da cheklangan. HTTPS tavsiya etiladi.');
-        
-        // getUserMedia ni chaqirishga harakat qilish
+      if (!navigator.mediaDevices?.getUserMedia) {
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: true, 
-            audio: true 
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true,
           });
-          stream.getTracks().forEach(track => track.stop());
+          stream.getTracks().forEach((track) => track.stop());
         } catch (mediaError) {
-          throw new Error("Kamera yoki mikrofon ruxsati kerak. Iltimos, HTTPS orqali ulaning yoki brauzer sozlamalaridan ruxsat bering.");
+          throw new Error(
+            "Kamera yoki mikrofon ruxsati kerak. Iltimos, HTTPS orqali ulaning yoki brauzer sozlamalaridan ruxsat bering."
+          );
         }
       }
-      
+
       setIsWaitingForAnswer(true);
-      const result = await webrtcService.current.initiateCall(receiverId, {
+      await webrtcService.current.initiateCall(receiverId, {
         id: currentUser._id,
         name: currentUser.fullName,
-        pic: currentUser.pic
+        pic: currentUser.pic,
       });
-      console.log('muvoffaqatli yuborildi yuboruvchidan');
-      
     } catch (error) {
-      let errorMessage = error.message;
-      
-      // Media qurilmalari xatoliklarini aniqlash
-      if (error.name === 'NotAllowedError') {
-        errorMessage = "Kamera yoki mikrofon ruxsati berilmagan. Iltimos, brauzer sozlamalaridan ruxsat bering.";
-      } else if (error.name === 'NotFoundError') {
-        errorMessage = "Kamera yoki mikrofon topilmadi. Iltimos, qurilmalarni ulang.";
-      } else if (error.name === 'NotReadableError') {
-        errorMessage = "Kamera yoki mikrofon boshqa ilova tomonidan ishlatilmoqda.";
-      } else if (error.name === 'OverconstrainedError') {
-        errorMessage = "Qurilma talablarga mos kelmadi.";
-      } else if (error.name === 'TypeError') {
-        errorMessage = "HTTPS ulanish talab qilinadi. Iltimos, https://192.168.100.253:5443 orqali ulaning.";
-      }
-      
       setToast({
         toast: true,
-        text: errorMessage,
+        text: getMediaErrorMessage(error),
       });
-      console.error('Error initiating call:', error);
+      console.error("Error initiating call:", error);
       setIsWaitingForAnswer(false);
     }
   };
-  
+
   const handleAcceptCall = async () => {
     try {
       await webrtcService.current.acceptCall();
     } catch (error) {
-      console.error('Error accepting call:', error);
+      console.error("Error accepting call:", error);
     }
   };
-  
+
   const handleAnswer = async (answerData) => {
     try {
       await webrtcService.current.handleAnswer(answerData);
       setIsInCall(true);
       setIsWaitingForAnswer(false);
     } catch (error) {
-      console.error('Error handling answer:', error);
+      console.error("Error handling answer:", error);
     }
   };
 
   const handleRejectCall = () => {
     if (webrtcService.current) {
       webrtcService.current.rejectCall();
-      webrtcService.current.cleanup(); // WebRTC service ni tozalash
     }
     setIsWaitingForAnswer(false);
     setIsIncomingCall(false);
     setCallerInfo(null);
     onClose();
   };
-    
+
   const handleEndCall = () => {
     if (webrtcService.current) {
       webrtcService.current.endCall();
-      webrtcService.current.cleanup(); // WebRTC service ni tozalash
     }
     setIsInCall(false);
     setIsIncomingCall(false);
@@ -424,7 +377,6 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
     if (webrtcService.current) {
       const enabled = webrtcService.current.toggleVideo();
       setIsVideoEnabled(enabled);
-      console.log('Video toggled to:', enabled);
     }
   };
 
@@ -432,7 +384,6 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
     if (webrtcService.current) {
       const enabled = webrtcService.current.toggleAudio();
       setIsAudioEnabled(enabled);
-      console.log('Audio toggled to:', enabled);
     }
   };
 
@@ -460,10 +411,13 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
   if (targetUser && !isIncomingCall && !isInCall && !isWaitingForAnswer) {
     return (
       <VideoCallContainer>
-        <div style={{ textAlign: 'center', color: 'white' }}>
+        <div style={{ textAlign: "center", color: "white" }}>
           <h3>Ready to call {targetUser.fullName}</h3>
           <CallButtons>
-            <ControlButton variant="answer" onClick={() => handleInitiateCall(targetUser._id)}>
+            <ControlButton
+              variant="answer"
+              onClick={() => handleInitiateCall(targetUser._id)}
+            >
               <FiVideo />
             </ControlButton>
             <ControlButton variant="reject" onClick={onClose}>
@@ -479,7 +433,7 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
   if (isWaitingForAnswer && !isInCall) {
     return (
       <VideoCallContainer>
-        <div style={{ textAlign: 'center', color: 'white' }}>
+        <div style={{ textAlign: "center", color: "white" }}>
           <h3>Calling {targetUser.fullName}...</h3>
           <p>Waiting for answer...</p>
           <CallButtons>
@@ -497,21 +451,12 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
       <VideoCallContainer>
         <VideoGrid>
           <VideoWrapper>
-            <VideoElement
-              ref={localVideoRef}
-              autoPlay
-              muted
-              playsInline
-            />
+            <VideoElement ref={localVideoRef} autoPlay muted playsInline />
             <VideoLabel>You</VideoLabel>
           </VideoWrapper>
           <VideoWrapper>
-            <VideoElement
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-            />
-            <VideoLabel>{callerInfo?.callerName || 'Remote'}</VideoLabel>
+            <VideoElement ref={remoteVideoRef} autoPlay playsInline />
+            <VideoLabel>{callerInfo?.callerName || "Remote"}</VideoLabel>
           </VideoWrapper>
         </VideoGrid>
         <ControlsContainer>
@@ -541,4 +486,3 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
 };
 
 export default VideoCall;
-

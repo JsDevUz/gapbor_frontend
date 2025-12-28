@@ -73,98 +73,135 @@ const OneChat = (props) => {
     });
   };
   useEffect(() => {
-    // setLoading({ loading: true, small: false });
     socket.emit("user:connected", getMe._id, (res) => {
       setOnlineUsers(res.onlineUsers.map((u) => u.userId));
     });
-    console.log(webrtcService,socket);
-    
+
     // Global WebRTC service ni yaratish
     if (!webrtcService.current) {
       webrtcService.current = new WebRTCService(socket);
-      
+
       webrtcService.current.onIncomingCall = (callData) => {
-        console.log("Incoming call:",callData);
-        
         setIncomingCall(callData);
         setShowVideoCall(true);
       };
-      
-      // Global socket listeners for WebRTC
-      socket.on('call:incoming', (data) => {
-        console.log('call:incoming yetib keldi oneChatga',data);
+    }
+
+    // Global socket listeners for WebRTC
+    const handleIncomingCall = (data) => {
+      if (webrtcService.current) {
         webrtcService.current.handleIncomingCall(data);
+      }
+    };
+
+    const handleOfferReceived = (data) => {
+      setIncomingCall({
+        callId: data.callId,
+        callerId: data.callerId,
+        callerName: data.callerName,
+        callerPic: data.callerPic,
+        offer: data.offer,
       });
-      
-      socket.on('call:offer-received', (data) => {
-        console.log('call:offer-received yetib keldi oneChatga',data);
+      setShowVideoCall(true);
+    };
+
+    const handleCallAnswered = (data) => {
+      if (webrtcService.current) {
+        webrtcService.current.handleAnswer(data);
+        setShowVideoCall(true);
         setIncomingCall({
           callId: data.callId,
-          callerId: data.callerId,
-          callerName: data.callerName,
-          callerPic: data.callerPic,
-          offer: data.offer
+          answered: true,
+          isInCall: true,
         });
-        setShowVideoCall(true);
-      });
-      
-      socket.on('call:answered', (data) => {
-        console.log('call:answered yetib keldi oneChatga',data);
-        if (webrtcService.current) {
-          webrtcService.current.handleAnswer(data);
-          // Qabul qiluvchi tomonida call boshlandi - UI yangilash
-          setShowVideoCall(true);
-          setIncomingCall({
-            callId: data.callId,
-            answered: true,
-            isInCall: true
-          });
-        }
-      });
-      
-      socket.on('call:ice-candidate', (data) => {
-        webrtcService.current.handleIceCandidate(data);
-      });
-      
-      socket.on('call:ended', (data) => {
-        console.log('call:ended yetib keldi oneChatga',data);
-        if (webrtcService.current) {
-          webrtcService.current.cleanup();
-        }
-        setShowVideoCall(false);
-        setIncomingCall(null);
-      });
-      
-      socket.on('call:rejected', (data) => {
-        console.log('call:rejected yetib keldi oneChatga',data);
-        if (webrtcService.current) {
-          webrtcService.current.cleanup();
-        }
-        setShowVideoCall(false);
-        setIncomingCall(null);
-      });
-    }
-    
-    socket.off("typing:start").on("typing:start", (userId) => {
-      if (get(selectChat, "chat._id") === userId) {
-        userId != getMe._id && setTyping(true);
       }
-    });
+    };
+
+    const handleIceCandidate = (data) => {
+      if (webrtcService.current) {
+        webrtcService.current.handleIceCandidate(data);
+      }
+    };
+
+    const handleCallEnded = () => {
+      if (webrtcService.current) {
+        webrtcService.current.cleanup();
+      }
+      setShowVideoCall(false);
+      setIncomingCall(null);
+    };
+
+    const handleCallRejected = () => {
+      if (webrtcService.current) {
+        webrtcService.current.cleanup();
+      }
+      setShowVideoCall(false);
+      setIncomingCall(null);
+    };
+
+    // Socket listenerlarni tozalab qo'yish
+    socket.off("call:incoming").on("call:incoming", handleIncomingCall);
     socket
-      .off("typing:stop")
-      .on("typing:stop", (userId) => userId != getMe._id && setTyping(false));
+      .off("call:offer-received")
+      .on("call:offer-received", handleOfferReceived);
+    socket.off("call:answered").on("call:answered", handleCallAnswered);
+    socket
+      .off("call:ice-candidate")
+      .on("call:ice-candidate", handleIceCandidate);
+    socket.off("call:ended").on("call:ended", handleCallEnded);
+    socket.off("call:rejected").on("call:rejected", handleCallRejected);
+
+    // Typing listeners
+    const handleTypingStart = (userId) => {
+      if (get(selectChat, "chat._id") === userId && userId !== getMe._id) {
+        setTyping(true);
+      }
+    };
+
+    const handleTypingStop = (userId) => {
+      if (userId !== getMe._id) {
+        setTyping(false);
+      }
+    };
+
+    socket.off("typing:start").on("typing:start", handleTypingStart);
+    socket.off("typing:stop").on("typing:stop", handleTypingStop);
+
+    // Cleanup function
+    return () => {
+      socket.off("call:incoming", handleIncomingCall);
+      socket.off("call:offer-received", handleOfferReceived);
+      socket.off("call:answered", handleCallAnswered);
+      socket.off("call:ice-candidate", handleIceCandidate);
+      socket.off("call:ended", handleCallEnded);
+      socket.off("call:rejected", handleCallRejected);
+      socket.off("typing:start", handleTypingStart);
+      socket.off("typing:stop", handleTypingStop);
+    };
   }, [getMe, selectChat]);
   useEffect(() => {
     getChats(getMe._id);
   }, [getMe]);
   useEffect(() => {
-    socket.off("new:onlineUser").on("new:onlineUser", (e) => {
-      if (!onlineUsers.includes(e)) setOnlineUsers((prev) => [...prev, e]);
-    });
-    socket.off("user:disconnected").on("user:disconnected", (e) => {
-      let newUserList = onlineUsers.filter((u) => u != e);
-      setOnlineUsers(newUserList);
-    });
+    const handleNewOnlineUser = (userId) => {
+      if (!onlineUsers.includes(userId)) {
+        setOnlineUsers((prev) => [...prev, userId]);
+      }
+    };
+
+    const handleUserDisconnected = (userId) => {
+      setOnlineUsers((prev) => prev.filter((u) => u !== userId));
+    };
+
+    socket.off("new:onlineUser").on("new:onlineUser", handleNewOnlineUser);
+    socket
+      .off("user:disconnected")
+      .on("user:disconnected", handleUserDisconnected);
+
+    return () => {
+      socket.off("new:onlineUser", handleNewOnlineUser);
+      socket.off("user:disconnected", handleUserDisconnected);
+    };
   }, [onlineUsers]);
 
   useEffect(() => {
@@ -175,179 +212,228 @@ const OneChat = (props) => {
   }, [chatId]);
 
   useEffect(() => {
-    socket
-      .off("edited:message:received")
-      .on("edited:message:received", (newmessage) => {
-        if (checkUserSelectThisChat(selectChat, newmessage)) {
-          let groupIndex = 0;
-          let messageIndex = 0;
-          selectChat.messages.map((m, i) => {
-            if (m._id === format(new Date(newmessage.createdAt), "yyyy/MM/dd"))
-              groupIndex = i;
-          });
-          selectChat.messages[groupIndex].messages.map((m, i) => {
-            if (m._id === newmessage._id) messageIndex = i;
-          });
-          selectChat.messages[groupIndex].messages[messageIndex].content =
-            newmessage.content;
+    const findMessageIndex = (messages, messageId, createdAt) => {
+      const dateStr = format(new Date(createdAt), "yyyy/MM/dd");
+      let groupIndex = -1;
+      let messageIndex = -1;
 
-          setSelectChat((prev) => ({
-            ...prev,
-            messages: [...get(selectChat, "messages", [])],
-          }));
+      messages.forEach((m, i) => {
+        if (m._id === dateStr) {
+          groupIndex = i;
         }
       });
-    socket
-      .off("deleted:message:received")
-      .on("deleted:message:received", (newmessage) => {
-        if (checkUserSelectThisChat(selectChat, newmessage)) {
-          let groupIndex = 0;
-          let messageIndex = 0;
-          selectChat.messages.map((m, i) => {
-            if (m._id === format(new Date(newmessage.createdAt), "yyyy/MM/dd"))
-              groupIndex = i;
-          });
-          selectChat.messages[groupIndex].messages.map((m, i) => {
-            if (m._id === newmessage._id) messageIndex = i;
-          });
-          delete selectChat.messages[groupIndex].messages[messageIndex];
+
+      if (groupIndex >= 0) {
+        messages[groupIndex].messages.forEach((m, i) => {
+          if (m._id === messageId) {
+            messageIndex = i;
+          }
+        });
+      }
+
+      return { groupIndex, messageIndex };
+    };
+
+    const handleEditedMessage = (newmessage) => {
+      if (!checkUserSelectThisChat(selectChat, newmessage)) return;
+
+      const { groupIndex, messageIndex } = findMessageIndex(
+        selectChat.messages,
+        newmessage._id,
+        newmessage.createdAt
+      );
+
+      if (groupIndex >= 0 && messageIndex >= 0) {
+        const updatedMessages = [...selectChat.messages];
+        updatedMessages[groupIndex] = {
+          ...updatedMessages[groupIndex],
+          messages: [...updatedMessages[groupIndex].messages],
+        };
+        updatedMessages[groupIndex].messages[messageIndex] = {
+          ...updatedMessages[groupIndex].messages[messageIndex],
+          content: newmessage.content,
+        };
+
+        setSelectChat((prev) => ({
+          ...prev,
+          messages: updatedMessages,
+        }));
+      }
+    };
+
+    const handleDeletedMessage = (newmessage) => {
+      if (checkUserSelectThisChat(selectChat, newmessage)) {
+        const { groupIndex, messageIndex } = findMessageIndex(
+          selectChat.messages,
+          newmessage._id,
+          newmessage.createdAt
+        );
+
+        if (groupIndex >= 0 && messageIndex >= 0) {
+          const updatedMessages = [...selectChat.messages];
+          updatedMessages[groupIndex] = {
+            ...updatedMessages[groupIndex],
+            messages: updatedMessages[groupIndex].messages.filter(
+              (m) => m._id !== newmessage._id
+            ),
+          };
+
           setSelectChat((prev) => ({
             ...prev,
-            messages: [...get(selectChat, "messages", [])],
+            messages: updatedMessages,
           }));
-          // if (get(selectChat, "messages", [])) {
-          //   let newList = get(selectChat, "messages", []).find(
-          //     (m) => m._id == newmessage._id
-          //   );
-          //   get(selectChat, "messages", []).splice(
-          //     get(selectChat, "messages", []).indexOf(newList),
-          //     1
-          //   );
-          //   setSelectChat((prev) => ({
-          //     ...prev,
-          //     messages: get(selectChat, "messages", []),
-          //   }));
-
           setLastAction("delete_message");
         }
-        let newNotifys = notifications.filter(
-          (notif) => notif._id != newmessage._id
-        );
-        setNotifications([...newNotifys]);
-        // }
-      });
-    socket.off("newUserJoin").on("newUserJoin", (chat) => {
-      setSelectChat((prev) => ({ ...prev, chat: chat }));
-    });
-    socket.off("user:new").on("user:new", (chats) => {
-      setChats(chats);
-    });
+      }
 
-    socket.off("newChat").on("newChat", (chat) => {
-      if (size(chats.filter((c) => c._id == chat._id)) == 0) {
+      setNotifications((prev) =>
+        prev.filter((notif) => notif._id !== newmessage._id)
+      );
+    };
+
+    socket
+      .off("edited:message:received")
+      .on("edited:message:received", handleEditedMessage);
+    socket
+      .off("deleted:message:received")
+      .on("deleted:message:received", handleDeletedMessage);
+
+    return () => {
+      socket.off("edited:message:received", handleEditedMessage);
+      socket.off("deleted:message:received", handleDeletedMessage);
+    };
+    const handleNewUserJoin = (chat) => {
+      setSelectChat((prev) => ({ ...prev, chat: chat }));
+    };
+
+    const handleUserNew = (newChats) => {
+      setChats(newChats);
+    };
+
+    const handleNewChat = (chat) => {
+      if (!chats.some((c) => c._id === chat._id)) {
         setChats((prev) => [...prev, chat]);
       }
-    });
-    socket.off("group:change").on("group:change", (chat) => {
-      if (get(selectChat, "chat._id") == chat._id) {
-        setSelectChat((prev) => ({ ...prev, chat: chat }));
+    };
 
+    const handleGroupChange = (chat) => {
+      if (get(selectChat, "chat._id") === chat._id) {
+        setSelectChat((prev) => ({ ...prev, chat: chat }));
         selectChatFunc(chat._id);
       }
+      setChats((prev) => prev.map((c) => (c._id === chat._id ? chat : c)));
+    };
 
-      chats.forEach((c, i) => {
-        if (c._id == chat._id) {
-          chats[i] = chat;
-        }
-      });
-      setChats([...chats]);
-    });
-    socket.off("message:newUser").on("message:newUser", (chat) => {
-      if (size(chats.filter((c) => c._id == chat._id)) == 0) {
+    const handleMessageNewUser = (chat) => {
+      if (!chats.some((c) => c._id === chat._id)) {
         setChats((prev) => [...prev, chat]);
       }
-    });
+    };
 
-    socket.off("kikyou").on("kikyou", (chat) => {
-      if (get(selectChat, "chat._id") == chat._id) {
+    const handleKikyou = (chat) => {
+      if (get(selectChat, "chat._id") === chat._id) {
         setSelectChat({});
         setDialog({ dialog: false });
         navigate("/chats/all");
       }
+      setChats((prev) => prev.filter((c) => c._id !== chat._id));
+    };
 
-      setChats((prev) => prev.filter((c) => c._id != chat._id));
-    });
-
-    socket.off("addyou").on("addyou", (chat) => {
-      if (size(chats.filter((c) => c._id == chat._id)) == 0) {
+    const handleAddyou = (chat) => {
+      if (!chats.some((c) => c._id === chat._id)) {
         setChats((prev) => [...prev, chat]);
       }
-    });
+    };
+
+    socket.off("newUserJoin").on("newUserJoin", handleNewUserJoin);
+    socket.off("user:new").on("user:new", handleUserNew);
+    socket.off("newChat").on("newChat", handleNewChat);
+    socket.off("group:change").on("group:change", handleGroupChange);
+    socket.off("message:newUser").on("message:newUser", handleMessageNewUser);
+    socket.off("kikyou").on("kikyou", handleKikyou);
+    socket.off("addyou").on("addyou", handleAddyou);
+
+    return () => {
+      socket.off("newUserJoin", handleNewUserJoin);
+      socket.off("user:new", handleUserNew);
+      socket.off("newChat", handleNewChat);
+      socket.off("group:change", handleGroupChange);
+      socket.off("message:newUser", handleMessageNewUser);
+      socket.off("kikyou", handleKikyou);
+      socket.off("addyou", handleAddyou);
+    };
+
+    const handleMessageReceived = ({ newmessage, isFirstMessgae }) => {
+      // Agar tanlangan chat bo'lsa, xabarni qo'shish
+      if (checkUserSelectThisChat(selectChat, newmessage)) {
+        const today = format(new Date(), "yyyy/MM/dd");
+        const lastMessageGroup = last(selectChat.messages);
+        const isToday = lastMessageGroup?._id === today;
+
+        const updatedMessages = [...selectChat.messages];
+        const messagesOfToday = isToday
+          ? updatedMessages.length - 1
+          : updatedMessages.length;
+
+        if (!isToday) {
+          updatedMessages.push({ _id: today, messages: [] });
+        }
+
+        updatedMessages[messagesOfToday].messages.push(newmessage);
+        updatedMessages[messagesOfToday]._id = today;
+
+        setSelectChat((prev) => ({
+          ...prev,
+          messages: updatedMessages,
+        }));
+      }
+
+      // Notification va chat list yangilash
+      if (
+        get(newmessage, "chat._id") === get(getMe, "_id") ||
+        get(newmessage, "chat.users")?.includes(get(getMe, "_id"))
+      ) {
+        if (!notifications.some((n) => n._id === newmessage._id)) {
+          setNotifications((prev) => [...prev, newmessage]);
+        }
+
+        const lastChatId =
+          get(newmessage, "sender_type") === "group"
+            ? get(newmessage, "chat._id")
+            : get(newmessage, "sender._id");
+
+        if (isFirstMessgae) {
+          setChats((prev) => [
+            ...prev,
+            { ...get(newmessage, "chat"), latestMessage: newmessage },
+          ]);
+        } else {
+          setChats((prev) => {
+            const updated = prev.map((c) =>
+              c._id === lastChatId ? { ...c, latestMessage: newmessage } : c
+            );
+            return updated.sort(
+              (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+            );
+          });
+        }
+      }
+    };
 
     socket
       .off("message:received")
-      .on("message:received", ({ newmessage, isFirstMessgae }) => {
-        if (checkUserSelectThisChat(selectChat, newmessage)) {
-          let messagesOfToday;
-          if (
-            get(last(selectChat.messages), "_id") ===
-            format(new Date(), "yyyy/MM/dd")
-          ) {
-            messagesOfToday = size(selectChat.messages) - 1;
-          } else {
-            messagesOfToday = size(selectChat.messages);
-            selectChat.messages[messagesOfToday] = { _id: "", messages: [] };
-          }
-          selectChat.messages[messagesOfToday].messages.push(newmessage);
-          selectChat.messages[messagesOfToday]._id = format(
-            new Date(),
-            "yyyy/MM/dd"
-          );
+      .on("message:received", handleMessageReceived);
 
-          setSelectChat((prev) => ({
-            ...prev,
-            messages: [...selectChat.messages],
-          }));
-        }
-
-        if (
-          get(newmessage, "chat._id") === get(getMe, "_id") ||
-          get(newmessage, "chat.users").includes(get(getMe, "_id"))
-        ) {
-          if (size(notifications.filter((n) => n._id == newmessage._id)) == 0) {
-            setNotifications((prev) => [...prev, newmessage]);
-          }
-          let lastChtId =
-            get(newmessage, "sender_type") === "group"
-              ? get(newmessage, "chat._id")
-              : get(newmessage, "sender._id");
-
-          let newChats = chats;
-
-          if (isFirstMessgae) {
-            setChats((prev) => [
-              ...prev,
-              { ...get(newmessage, "chat"), latestMessage: newmessage },
-            ]);
-          } else {
-            chats.map((c, i) => {
-              if (c._id == lastChtId) newChats[i].latestMessage = newmessage;
-            });
-          }
-          newChats = newChats.sort(
-            (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
-          );
-
-          setChats([...newChats]);
-        }
-      });
-  }, [get(selectChat, "messages", []), selectChat, chats, notifications]);
+    return () => {
+      socket.off("message:received", handleMessageReceived);
+    };
+  }, [selectChat, chats, notifications, getMe]);
 
   useEffect(() => {
-    if (messageRowRef && messageRowRef?.current) {
+    if (messageRowRef?.current) {
       document.oncontextmenu = () => false;
     }
-  });
+  }, []);
   return (
     <>
       <ChatsList selectChatFunc={selectChatFunc} onlineUsers={onlineUsers} />
@@ -375,4 +461,3 @@ const OneChat = (props) => {
 };
 
 export default memo(OneChat);
-
