@@ -26,7 +26,12 @@ class WebRTCService {
   }
 
   createPeerConnection() {
-    this.peerConnection = new RTCPeerConnection(this.iceServers);
+    this.peerConnection = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    });
 
     this.peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
@@ -39,8 +44,11 @@ class WebRTCService {
     };
 
     this.peerConnection.ontrack = (event) => {
+      console.log('Remote stream received:', event.streams[0]);
       this.remoteStream = event.streams[0];
-      this.onRemoteStream(this.remoteStream);
+      if (this.onRemoteStream) {
+        this.onRemoteStream(this.remoteStream);
+      }
     };
 
     if (this.localStream) {
@@ -248,6 +256,35 @@ console.log('call:initiate qilindi yuboruvchidan');
       }
     }
     return false;
+  }
+
+  cleanup() {
+    console.log('Cleaning up WebRTC service');
+    
+    // Local stream ni to'xtatish
+    if (this.localStream) {
+      this.localStream.getTracks().forEach(track => {
+        track.stop();
+      });
+      this.localStream = null;
+    }
+
+    // Peer connection ni yopish
+    if (this.peerConnection) {
+      this.peerConnection.close();
+      this.peerConnection = null;
+    }
+
+    // Remote stream ni tozalash
+    this.remoteStream = null;
+
+    // State ni tozalash
+    this.remoteUserId = null;
+    this.callId = null;
+    this.isCallActive = false;
+    this.pendingIceCandidates = [];
+
+    console.log('WebRTC service cleaned up');
   }
 
   // Event callbacks

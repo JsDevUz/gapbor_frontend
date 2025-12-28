@@ -268,13 +268,21 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
   }, [socket, externalWebrtcService]);
 
   useEffect(() => {
-    if (webrtcService.current && localVideoRef.current) {
+    if (isInCall && localVideoRef.current && webrtcService.current) {
       const stream = webrtcService.current.localStream;
       if (stream) {
         localVideoRef.current.srcObject = stream;
       }
     }
   }, [isInCall]);
+
+  useEffect(() => {
+    return () => {
+      if (webrtcService.current) {
+        webrtcService.current.cleanup();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     // Agar incomingCall bo'lsa, uni WebRTC service ga uzatish
@@ -376,13 +384,20 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
   };
 
   const handleRejectCall = () => {
-    webrtcService.current.rejectCall();
+    if (webrtcService.current) {
+      webrtcService.current.rejectCall();
+      webrtcService.current.cleanup(); // WebRTC service ni tozalash
+    }
     setIsWaitingForAnswer(false);
+    setIsIncomingCall(false);
+    setCallerInfo(null);
+    onClose();
   };
     
   const handleEndCall = () => {
     if (webrtcService.current) {
       webrtcService.current.endCall();
+      webrtcService.current.cleanup(); // WebRTC service ni tozalash
     }
     setIsInCall(false);
     setIsIncomingCall(false);
