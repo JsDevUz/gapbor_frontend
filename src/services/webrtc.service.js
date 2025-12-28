@@ -28,10 +28,9 @@ class WebRTCService {
         
         constraints = {
           video: {
-            width: { ideal: isIOS ? 640 : 1280 }, // iPhone da pastroq rezolyutsiya
+            width: { ideal: isIOS ? 640 : 1280 },
             height: { ideal: isIOS ? 480 : 720 },
             facingMode: 'user',
-            // iPhone uchun qo'shimcha parametrlar
             ...(isIOS && {
               frameRate: { ideal: 30, max: 30 }
             })
@@ -40,10 +39,15 @@ class WebRTCService {
             echoCancellation: true,
             noiseSuppression: true,
             autoGainControl: true,
-            // iPhone uchun audio codec parametrlari
+            // iOS uchun audio codec parametrlari
             ...(isIOS && {
               sampleRate: 44100,
-              channelCount: 1
+              channelCount: 1,
+              // iOS uchun qo'shimcha audio parametrlar
+              latency: 0.01,
+              googEchoCancellation: true,
+              googNoiseSuppression: true,
+              googAutoGainControl: true
             })
           }
         };
@@ -89,7 +93,9 @@ class WebRTCService {
       ...(isIOS && {
         iceCandidatePoolSize: 10,
         bundlePolicy: 'max-bundle',
-        rtcpMuxPolicy: 'require'
+        rtcpMuxPolicy: 'require',
+        // iOS uchun codec preferences
+        sdpSemantics: 'unified-plan'
       })
     };
     
@@ -116,6 +122,16 @@ class WebRTCService {
 
     this.peerConnection.ontrack = (event) => {
       console.log('Received remote track:', event);
+      console.log('Track event details:', {
+        track: event.track,
+        streams: event.streams,
+        receiver: event.receiver,
+        transceiver: event.transceiver
+      });
+      
+      // iOS uchun maxsus stream handling
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      
       if (event.streams && event.streams[0]) {
         this.remoteStream = event.streams[0];
         console.log('Remote stream set:', this.remoteStream);
@@ -123,8 +139,27 @@ class WebRTCService {
           kind: track.kind,
           label: track.label,
           enabled: track.enabled,
-          muted: track.muted
+          muted: track.muted,
+          readyState: track.readyState
         })));
+        
+        // iOS uchun track enable qilish
+        if (isIOS) {
+          this.remoteStream.getTracks().forEach(track => {
+            if (!track.enabled) {
+              console.log(`Enabling ${track.kind} track on iOS`);
+              track.enabled = true;
+            }
+          });
+        }
+        
+        if (this.onRemoteStream) {
+          this.onRemoteStream(this.remoteStream);
+        }
+      } else if (event.track) {
+        // iOS da ba'zida stream bo'lmaydi, faqat track keladi
+        console.log('Creating stream from track (iOS fallback)');
+        this.remoteStream = new MediaStream([event.track]);
         
         if (this.onRemoteStream) {
           this.onRemoteStream(this.remoteStream);
@@ -135,10 +170,22 @@ class WebRTCService {
     // Local stream tracks ni peer connection ga qo'shish
     if (this.localStream) {
       console.log('Adding local tracks to peer connection');
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      
       this.localStream.getTracks().forEach(track => {
         console.log(`Adding ${track.kind} track:`, track.label, 'enabled:', track.enabled);
-        // addTrack(track, stream) - ikkinchi parametr stream kerak
-        this.peerConnection.addTrack(track, this.localStream);
+        
+        // iOS uchun audio track ni maxsus qo'shish
+        if (isIOS && track.kind === 'audio') {
+          // iOS da audio track ni birinchi qo'shish muhim
+          this.peerConnection.addTrack(track, this.localStream);
+          
+          // Audio track ni majburan enable qilish
+          track.enabled = true;
+          console.log('Audio track enabled for iOS');
+        } else {
+          this.peerConnection.addTrack(track, this.localStream);
+        }
       });
     } else {
       console.warn('No local stream available when creating peer connection');
