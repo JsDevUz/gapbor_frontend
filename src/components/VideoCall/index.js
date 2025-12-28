@@ -194,8 +194,27 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
       };
       
       externalWebrtcService.onRemoteStream = (stream) => {
+        console.log('Remote stream received in VideoCall:', stream);
+        console.log('Remote stream tracks:', stream.getTracks().map(track => ({
+          kind: track.kind,
+          label: track.label,
+          enabled: track.enabled,
+          muted: track.muted
+        })));
+        
         if (remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = stream;
+          
+          // iPhone uchun video elementni majburan play qilish
+          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+          if (isIOS) {
+            remoteVideoRef.current.play().catch(error => {
+              console.error('Error playing remote video on iOS:', error);
+              // iOS da user interaction talab qilinishi mumkin
+              remoteVideoRef.current.muted = true;
+              remoteVideoRef.current.play().catch(e => console.log('Still error:', e));
+            });
+          }
         }
       };
       
@@ -272,7 +291,26 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
     if (isInCall && localVideoRef.current && webrtcService.current) {
       const stream = webrtcService.current.localStream;
       if (stream) {
+        console.log('Setting local video stream:', stream);
+        console.log('Local stream tracks:', stream.getTracks().map(track => ({
+          kind: track.kind,
+          label: track.label,
+          enabled: track.enabled,
+          muted: track.muted
+        })));
+        
         localVideoRef.current.srcObject = stream;
+        
+        // iPhone uchun local video elementni majburan play qilish
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        if (isIOS) {
+          localVideoRef.current.play().catch(error => {
+            console.error('Error playing local video on iOS:', error);
+            // iOS da user interaction talab qilinishi mumkin
+            localVideoRef.current.muted = true; // Local video odatda muted bo'ladi
+            localVideoRef.current.play().catch(e => console.log('Still error:', e));
+          });
+        }
         
         // Track holatini UI ga sinxronizatsiya qilish
         const videoTrack = stream.getVideoTracks()[0];
@@ -288,7 +326,7 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
         }
       }
     }
-  }, [isInCall]);
+  }, [isInCall, webrtcService.current]);
 
   useEffect(() => {
     return () => {

@@ -11,29 +11,47 @@ class WebRTCService {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' }
       ]
     };
+
   }
 
   async getUserMedia(constraints = null) {
     try {
       // Agar constraints berilmagan bo'lsa, default qilib o'rnatish
       if (!constraints) {
+        // iPhone uchun optimallangan constraints
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        
         constraints = {
           video: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            facingMode: 'user'
+            width: { ideal: isIOS ? 640 : 1280 }, // iPhone da pastroq rezolyutsiya
+            height: { ideal: isIOS ? 480 : 720 },
+            facingMode: 'user',
+            // iPhone uchun qo'shimcha parametrlar
+            ...(isIOS && {
+              frameRate: { ideal: 30, max: 30 }
+            })
           },
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
-            autoGainControl: true
+            autoGainControl: true,
+            // iPhone uchun audio codec parametrlari
+            ...(isIOS && {
+              sampleRate: 44100,
+              channelCount: 1
+            })
           }
         };
       }
 
       console.log('Getting user media with constraints:', constraints);
+      console.log('Is iOS device:', /iPad|iPhone|iPod/.test(navigator.userAgent));
+      
       this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
       
       // Stream tracks ni tekshirish va enable qilish
@@ -41,7 +59,8 @@ class WebRTCService {
         kind: track.kind,
         label: track.label,
         enabled: track.enabled,
-        muted: track.muted
+        muted: track.muted,
+        settings: track.getSettings()
       })));
       
       // Agar track disabled bo'lsa, enable qilish
@@ -61,12 +80,21 @@ class WebRTCService {
 
   createPeerConnection() {
     console.log('Creating peer connection...');
-    this.peerConnection = new RTCPeerConnection({
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-      ]
-    });
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    
+    // iPhone uchun optimallangan PeerConnection konfiguratsiyasi
+    const pcConfig = {
+      iceServers: this.iceServers.iceServers,
+      // iPhone uchun qo'shimcha konfiguratsiya
+      ...(isIOS && {
+        iceCandidatePoolSize: 10,
+        bundlePolicy: 'max-bundle',
+        rtcpMuxPolicy: 'require'
+      })
+    };
+    
+    console.log('PeerConnection config:', pcConfig);
+    this.peerConnection = new RTCPeerConnection(pcConfig);
 
     this.peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
@@ -79,18 +107,28 @@ class WebRTCService {
       }
     };
 
+    this.peerConnection.oniceconnectionstatechange = () => {
+      console.log('ICE connection state changed:', this.peerConnection.iceConnectionState);
+      if (this.peerConnection.iceConnectionState === 'failed' || this.peerConnection.iceConnectionState === 'disconnected') {
+        console.warn('ICE connection failed/disconnected');
+      }
+    };
+
     this.peerConnection.ontrack = (event) => {
-      console.log('Remote stream received:', event.streams[0]);
-      console.log('Remote stream tracks:', event.streams[0].getTracks().map(track => ({
-        kind: track.kind,
-        label: track.label,
-        enabled: track.enabled,
-        muted: track.muted
-      })));
-      
-      this.remoteStream = event.streams[0];
-      if (this.onRemoteStream) {
-        this.onRemoteStream(this.remoteStream);
+      console.log('Received remote track:', event);
+      if (event.streams && event.streams[0]) {
+        this.remoteStream = event.streams[0];
+        console.log('Remote stream set:', this.remoteStream);
+        console.log('Remote stream tracks:', this.remoteStream.getTracks().map(track => ({
+          kind: track.kind,
+          label: track.label,
+          enabled: track.enabled,
+          muted: track.muted
+        })));
+        
+        if (this.onRemoteStream) {
+          this.onRemoteStream(this.remoteStream);
+        }
       }
     };
 
