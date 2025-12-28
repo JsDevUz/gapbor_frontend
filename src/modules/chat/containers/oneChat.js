@@ -97,7 +97,7 @@ const OneChat = (props) => {
       });
       
       socket.on('call:offer-received', (data) => {
-        console.log('call:offer-received yetib keldi oneChatga',data);
+        // console.log('call:offer-received yetib keldi oneChatga',data);
         setIncomingCall({
           callId: data.callId,
           callerId: data.callerId,
