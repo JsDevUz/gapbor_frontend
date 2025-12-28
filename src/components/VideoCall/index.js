@@ -152,7 +152,11 @@ const CallButtons = styled.div`
 
 const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, webrtcService: externalWebrtcService }) => {
   const [isInCall, setIsInCall] = useState(false);
-    const { setChats, setToast, chats, selectChat, setSelectChat } = useModal();
+  const { setChats, setToast, chats, selectChat, setSelectChat } = useModal();
+  
+  // iOS detection
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  console.log('Is iOS device:', isIOS);
   
   const [isIncomingCall, setIsIncomingCall] = useState(false);
   const [isWaitingForAnswer, setIsWaitingForAnswer] = useState(false);
@@ -500,6 +504,7 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
       <VideoCallContainer>
         <div style={{ textAlign: 'center', color: 'white' }}>
           <h3>Ready to call {targetUser.fullName}</h3>
+           {isIOS && <p style={{ color: '#ffcc00', fontSize: '14px' }}>ios</p>}
           <CallButtons>
             <ControlButton variant="answer" onClick={() => handleInitiateCall(targetUser._id)}>
               <FiVideo />
