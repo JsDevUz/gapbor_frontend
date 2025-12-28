@@ -56,7 +56,7 @@ export const LoginOrSignup = () => {
     setErr([]);
 
     try {
-      const url = isRegistering ? 'http://192.168.100.253:5001/api/auth/register' : 'http://192.168.100.253:5001/api/auth/login';
+      const url = isRegistering ? 'https://gapbor-server.onrender.com/api/auth/register' : 'https://gapbor-server.onrender.com/api/auth/login';
       const body = isRegistering ? { email, password, fullName } : { email, password };
       
       const response = await axios.post(url, body);
@@ -88,7 +88,7 @@ export const LoginOrSignup = () => {
 
     try {
       // Token bilan user ma'lumotlarini olish
-      const response = await axios.post('http://192.168.100.253:5001/1/api/auth/getme', {}, {
+      const response = await axios.post('https://gapbor-server.onrender.com/api/auth/getme', {}, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
