@@ -86,8 +86,7 @@ const MeetVideoCall = ({ socket, currentUser, onClose, meetId }) => {
       participants.forEach((participant) => {
         if (
           participant._id !== currentUser._id &&
-          !peerConnections.current[participant._id] &&
-          currentUser._id < participant._id // Faqat o'z ID si kichikroq bo'lgan user offer yaratadi
+          !peerConnections.current[participant._id]
         ) {
           console.log("Creating PC and offer for participant:", participant);
           createPeerConnection(participant._id, participant);
@@ -185,8 +184,9 @@ const MeetVideoCall = ({ socket, currentUser, onClose, meetId }) => {
 
       // Yangi user qo'shilganda
       const handleUserJoined = (data) => {
-        console.log("User joined in MeetVideoCall:", data, userId);
-        console.log("Current participants:", participants);
+        console.log("🔵 meet:user-joined received:", data);
+        console.log("Current userId:", userId);
+        console.log("Current participants before:", participants);
         if (data.userId !== userId) {
           console.log("Creating peer connection for:", data.userId);
           setParticipants((prev) => {
@@ -197,6 +197,22 @@ const MeetVideoCall = ({ socket, currentUser, onClose, meetId }) => {
             }
             return prev;
           });
+          // Agar peer connection mavjud bo'lsa, eski connectionni tozalash (refresh case)
+          if (peerConnections.current[data.userId]) {
+            console.log(
+              "User rejoined, cleaning up existing peer connection for:",
+              data.userId
+            );
+            peerConnections.current[data.userId].close();
+            delete peerConnections.current[data.userId];
+            // Eski remote streamni ham tozalash
+            setRemoteStreams((prev) => {
+              const newStreams = { ...prev };
+              delete newStreams[data.userId];
+              return newStreams;
+            });
+          }
+          // Yangi peer connection yaratish
           createPeerConnection(data.userId, data.user);
         } else {
           // O'zimiz ham peer connection yaratishimiz kerak
@@ -226,10 +242,12 @@ const MeetVideoCall = ({ socket, currentUser, onClose, meetId }) => {
 
       // User chiqqanda
       const handleUserLeft = (data) => {
+        console.log("User left the meet:", data.userId);
         setParticipants((prev) => prev.filter((p) => p._id !== data.userId));
 
         // Peer connection ni tozalash
         if (peerConnections.current[data.userId]) {
+          console.log("Closing peer connection for user:", data.userId);
           peerConnections.current[data.userId].close();
           delete peerConnections.current[data.userId];
         }
@@ -273,6 +291,48 @@ const MeetVideoCall = ({ socket, currentUser, onClose, meetId }) => {
             console.log("  Signaling State:", pc.signalingState);
             console.log("  Remote Description:", pc.remoteDescription);
 
+            // Perfect negotiation: handle glare condition
+            const hasLocalOffer = pc.signalingState === "have-local-offer";
+            const isPolite = currentUser._id > data.fromUserId; // Higher ID is more polite
+
+            if (hasLocalOffer && isPolite) {
+              console.log(
+                "Glare detected! We're polite, ignoring remote offer and restarting negotiation"
+              );
+              // As the polite peer, ignore the remote offer and restart with our offer after a delay
+              setTimeout(async () => {
+                console.log("Polite peer restarting negotiation");
+                // Close current PC
+                pc.close();
+                delete peerConnections.current[data.fromUserId];
+                setRemoteStreams((prev) => {
+                  const newStreams = { ...prev };
+                  delete newStreams[data.fromUserId];
+                  return newStreams;
+                });
+                // Create new offer
+                await createPeerConnection(
+                  data.fromUserId,
+                  {
+                    _id: data.fromUserId,
+                    fullName: "User",
+                    pic: "",
+                  },
+                  true
+                );
+              }, 1000); // Wait 1 second before restarting
+              return;
+            }
+
+            if (hasLocalOffer && !isPolite) {
+              console.log(
+                "Glare detected! We're impolite, ignoring remote offer and waiting for polite peer to restart"
+              );
+              // As the impolite peer, ignore the remote offer
+              // The polite peer will restart negotiation
+              return;
+            }
+
             await pc.setRemoteDescription(
               new RTCSessionDescription(data.offer)
             );
@@ -306,6 +366,10 @@ const MeetVideoCall = ({ socket, currentUser, onClose, meetId }) => {
 
       const handleAnswer = async (data) => {
         console.log("meet:answer received in client:", data);
+        console.log(
+          "Answer SDP type:",
+          new RTCSessionDescription(data.answer).type
+        );
         try {
           const pc = peerConnections.current[data.fromUserId];
           if (pc) {
@@ -317,8 +381,29 @@ const MeetVideoCall = ({ socket, currentUser, onClose, meetId }) => {
               pc.remoteDescription?.type
             );
 
-            // The offerer should only set remote answer when in 'have-local-offer' state.
-            if (pc.signalingState === "have-local-offer") {
+            // The offerer can set remote answer when in 'have-local-offer' state,
+            // or when 'stable' but remote description is still 'offer' (late answer arrival)
+            console.log("Evaluating condition:");
+            console.log("  signalingState:", pc.signalingState);
+            console.log(
+              "  remoteDescription?.type:",
+              pc.remoteDescription?.type
+            );
+            console.log(
+              "  Condition 1 (have-local-offer):",
+              pc.signalingState === "have-local-offer"
+            );
+            console.log(
+              "  Condition 2 (stable + offer):",
+              pc.signalingState === "stable" &&
+                pc.remoteDescription?.type === "offer"
+            );
+
+            if (
+              pc.signalingState === "have-local-offer" ||
+              (pc.signalingState === "stable" &&
+                pc.remoteDescription?.type === "offer")
+            ) {
               console.log("Setting remote description to answer...");
               await pc.setRemoteDescription(
                 new RTCSessionDescription(data.answer)
@@ -336,13 +421,16 @@ const MeetVideoCall = ({ socket, currentUser, onClose, meetId }) => {
               // Queued ICE candidate larni qo'shish
               if (pc.iceCandidatesQueue && pc.iceCandidatesQueue.length > 0) {
                 console.log(
-                  "Adding queued ICE candidates:",
-                  pc.iceCandidatesQueue.length
+                  `Processing ${pc.iceCandidatesQueue.length} queued ICE candidates for ${data.fromUserId}`
                 );
+                let addedCount = 0;
                 for (const candidate of pc.iceCandidatesQueue) {
                   try {
                     await pc.addIceCandidate(new RTCIceCandidate(candidate));
-                    console.log("ICE candidate added.");
+                    console.log(
+                      `Queued ICE candidate added: ${candidate.type}`
+                    );
+                    addedCount++;
                   } catch (addIceError) {
                     console.error(
                       "Error adding queued ICE candidate:",
@@ -351,7 +439,11 @@ const MeetVideoCall = ({ socket, currentUser, onClose, meetId }) => {
                   }
                 }
                 pc.iceCandidatesQueue = [];
-                console.log("All queued ICE candidates processed.");
+                console.log(
+                  `Successfully added ${addedCount} queued ICE candidates for ${data.fromUserId}`
+                );
+              } else {
+                console.log(`No queued ICE candidates for ${data.fromUserId}`);
               }
             } else {
               console.warn(
@@ -375,19 +467,40 @@ const MeetVideoCall = ({ socket, currentUser, onClose, meetId }) => {
       };
 
       const handleIceCandidate = async (data) => {
-        console.log("meet:ice-candidate received in client:", data);
+        console.log(
+          `meet:ice-candidate received from ${data.fromUserId}:`,
+          data.candidate?.type,
+          data.candidate?.protocol,
+          data.candidate?.address
+        );
         try {
           const pc = peerConnections.current[data.fromUserId];
           if (pc && data.candidate) {
             console.log("Adding ICE candidate for:", data.fromUserId);
-            console.log("Current remote description:", pc.remoteDescription);
+            console.log(
+              "Current remote description:",
+              pc.remoteDescription?.type
+            );
             console.log("Current signaling state:", pc.signalingState);
 
             // Remote description bo'lgandagina ICE candidate qo'shish mumkin
+            console.log("Checking remote description for ICE candidate:");
+            console.log(
+              "  pc.remoteDescription exists:",
+              !!pc.remoteDescription
+            );
+            console.log(
+              "  pc.remoteDescription.type:",
+              pc.remoteDescription?.type
+            );
+
             if (pc.remoteDescription) {
               try {
                 await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-                console.log("ICE candidate added for:", data.fromUserId);
+                console.log(
+                  `ICE candidate added successfully for ${data.fromUserId}:`,
+                  data.candidate.type
+                );
               } catch (addIceError) {
                 console.error("Error adding ICE candidate:", addIceError);
               }
@@ -400,6 +513,10 @@ const MeetVideoCall = ({ socket, currentUser, onClose, meetId }) => {
                 pc.iceCandidatesQueue = [];
               }
               pc.iceCandidatesQueue.push(data.candidate);
+              console.log(
+                `Queued ICE candidate for ${data.fromUserId}, queue length:`,
+                pc.iceCandidatesQueue.length
+              );
             }
           } else {
             console.log("No PC or candidate for:", data.fromUserId);
@@ -419,7 +536,15 @@ const MeetVideoCall = ({ socket, currentUser, onClose, meetId }) => {
       console.log("MeetVideoCall socket listeners added for meet:", meetId);
 
       // Meet roomiga qo'shilish
-      socket.emit("meet:join-room", { meetId, userId });
+      console.log(
+        "Emitting meet:join-room for meetId:",
+        meetId,
+        "userId:",
+        userId
+      );
+      socket.emit("meet:join-room", { meetId, userId }, (response) => {
+        console.log("meet:join-room response:", response);
+      });
       console.log("Joined meet room:", meetId);
 
       // User ni online users ga qo'shish
@@ -471,6 +596,17 @@ const MeetVideoCall = ({ socket, currentUser, onClose, meetId }) => {
           { urls: "stun:stun2.l.google.com:19302" },
           { urls: "stun:stun3.l.google.com:19302" },
           { urls: "stun:stun4.l.google.com:19302" },
+          // Add TURN servers for better connectivity
+          {
+            urls: "turn:openrelay.metered.ca:80",
+            username: "openrelayproject",
+            credential: "openrelayproject",
+          },
+          {
+            urls: "turn:openrelay.metered.ca:443",
+            username: "openrelayproject",
+            credential: "openrelayproject",
+          },
         ],
         iceCandidatePoolSize: 10,
       };
@@ -478,6 +614,40 @@ const MeetVideoCall = ({ socket, currentUser, onClose, meetId }) => {
       const pc = new RTCPeerConnection(configuration);
       peerConnections.current[userId] = pc;
       console.log("Peer connection created for:", userId);
+
+      // Add connection timeout handling
+      let connectionTimeout = setTimeout(() => {
+        if (
+          pc.connectionState !== "connected" &&
+          pc.connectionState !== "completed"
+        ) {
+          console.warn(
+            `Connection timeout for ${userId}, restarting ICE gathering`
+          );
+          pc.restartIce();
+        }
+      }, 10000); // 10 second timeout
+
+      // Clear timeout on successful connection
+      const clearConnectionTimeout = () => {
+        if (connectionTimeout) {
+          clearTimeout(connectionTimeout);
+          connectionTimeout = null;
+        }
+      };
+
+      // Override the connection state change handler to clear timeout
+      const originalOnConnectionStateChange = pc.onconnectionstatechange;
+      pc.onconnectionstatechange = () => {
+        if (originalOnConnectionStateChange) originalOnConnectionStateChange();
+
+        if (
+          pc.connectionState === "connected" ||
+          pc.connectionState === "completed"
+        ) {
+          clearConnectionTimeout();
+        }
+      };
 
       // Local stream qo'shish
       if (localStreamRef.current) {
@@ -489,39 +659,132 @@ const MeetVideoCall = ({ socket, currentUser, onClose, meetId }) => {
 
       // Remote stream qabul qilish
       pc.ontrack = (event) => {
-        console.log("Remote track received from:", userId, event);
+        console.log(
+          `Remote track received from ${userId}:`,
+          event.track.kind,
+          event.track.readyState
+        );
+        console.log("Track streams:", event.streams.length);
 
         const stream = event.streams[0];
         if (stream) {
-          console.log("Setting remote stream for user:", userId, stream);
+          console.log(
+            `Setting remote stream for user ${userId}, tracks:`,
+            stream.getTracks().map((t) => ({
+              kind: t.kind,
+              enabled: t.enabled,
+              readyState: t.readyState,
+            }))
+          );
           setRemoteStreams((prev) => ({
             ...prev,
             [userId]: stream,
           }));
+        } else {
+          console.warn(`No stream in track event from ${userId}`);
         }
       };
 
       // ICE candidates
       pc.onicecandidate = (event) => {
         if (event.candidate) {
-          console.log("ICE candidate generated for:", userId);
+          console.log(
+            `ICE candidate generated for ${userId}:`,
+            event.candidate.type,
+            event.candidate.protocol,
+            event.candidate.address || "no-address"
+          );
+
+          // Check if we have any non-host candidates (STUN/TURN working)
+          if (event.candidate.type !== "host") {
+            console.log(
+              `✅ Got ${event.candidate.type} candidate for ${userId} - good for connectivity`
+            );
+          } else {
+            console.log(
+              `⚠️ Got host candidate for ${userId} - may need STUN/TURN for remote connection`
+            );
+          }
+
           socket.emit("meet:ice-candidate", {
             meetId,
             toUserId: userId,
             fromUserId: currentUser?._id,
             candidate: event.candidate,
           });
+        } else {
+          console.log(`ICE gathering completed for ${userId}`);
+          const sdp = pc.localDescription?.sdp;
+          if (sdp) {
+            const candidateLines = sdp
+              .split("\n")
+              .filter((line) => line.startsWith("a=candidate:"));
+            const hostCandidates = candidateLines.filter((line) =>
+              line.includes("typ host")
+            ).length;
+            const srflxCandidates = candidateLines.filter((line) =>
+              line.includes("typ srflx")
+            ).length;
+            const relayCandidates = candidateLines.filter((line) =>
+              line.includes("typ relay")
+            ).length;
+
+            console.log(`Candidate summary for ${userId}:`);
+            console.log(`  Host: ${hostCandidates}`);
+            console.log(`  Server Reflexive (STUN): ${srflxCandidates}`);
+            console.log(`  Relay (TURN): ${relayCandidates}`);
+          }
         }
       };
 
       // ICE connection state monitoring
       pc.oniceconnectionstatechange = () => {
         console.log(
-          "ICE connection state for",
-          userId,
-          "changed to:",
-          pc.iceConnectionState
+          `ICE connection state for ${userId} changed to: ${pc.iceConnectionState}`
         );
+
+        // Additional debugging for different states
+        if (pc.iceConnectionState === "checking") {
+          console.log(`ICE checking started for ${userId}`);
+        } else if (pc.iceConnectionState === "connected") {
+          console.log(`ICE connected for ${userId} - media should flow now`);
+        } else if (pc.iceConnectionState === "completed") {
+          console.log(`ICE completed for ${userId}`);
+        } else if (pc.iceConnectionState === "failed") {
+          console.error(`ICE failed for ${userId} - connection won't work`);
+          console.error(`ICE gathering state: ${pc.iceGatheringState}`);
+          console.error(
+            `Local candidates count: ${
+              pc.localDescription?.sdp?.split("a=candidate:").length - 1 || 0
+            }`
+          );
+
+          // Try to restart ICE as a last resort
+          console.log(`Attempting ICE restart for ${userId}`);
+          try {
+            pc.restartIce();
+          } catch (error) {
+            console.error(`ICE restart failed for ${userId}:`, error);
+          }
+        } else if (pc.iceConnectionState === "disconnected") {
+          console.warn(`ICE disconnected for ${userId} - temporary issue`);
+        }
+      };
+
+      // ICE gathering state monitoring
+      pc.onicegatheringstatechange = () => {
+        console.log(
+          `ICE gathering state for ${userId} changed to: ${pc.iceGatheringState}`
+        );
+
+        if (pc.iceGatheringState === "complete") {
+          console.log(`ICE gathering completed for ${userId}`);
+          const candidateCount =
+            pc.localDescription?.sdp?.split("a=candidate:").length - 1 || 0;
+          console.log(
+            `Total ICE candidates generated for ${userId}: ${candidateCount}`
+          );
+        }
       };
 
       pc.onconnectionstatechange = () => {
@@ -545,6 +808,14 @@ const MeetVideoCall = ({ socket, currentUser, onClose, meetId }) => {
           );
           console.error("ICE gathering state:", pc.iceGatheringState);
           console.error("Signaling state:", pc.signalingState);
+          console.error("Local description:", pc.localDescription?.type);
+          console.error("Remote description:", pc.remoteDescription?.type);
+
+          // Check if we have any ICE candidates
+          console.error(
+            "ICE candidates generated:",
+            pc.iceGatheringState === "complete" ? "Yes" : "No"
+          );
 
           // NO MORE RESTART - just log the error
           console.error("Connection failed - no restart attempt");
