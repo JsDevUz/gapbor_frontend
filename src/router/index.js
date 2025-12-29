@@ -9,6 +9,7 @@ import AppLayout from "layouts/appLayout";
 import SettingPage from "modules/settings/page";
 import { LoginOrSignup } from "modules/auth/loginOrSignUp";
 import AuthLayout from "layouts/authLayout";
+import MeetPage from "pages/MeetPage";
 // import LivesPage from "modules/live";
 
 export const Router = () => {
@@ -26,12 +27,10 @@ export const Router = () => {
               <Route path="/chats/:chatId" element={<Main />} />
               <Route path="/settings/:menu" element={<SettingPage />} />
               <Route path="/settings/" element={<SettingPage />} />
+              {/* Meet routes */}
+              <Route path="/meet/:meetId" element={<MeetPage />} />
               {/* <Route path="/lives/" element={<LivesPage />} /> */}
               {/* <Route path="/lives/:liveId" element={<LivesPage />} /> */}
-              {/* <Route
-                path="/settings"
-                element={<Navigate to="/settings/me" replace={true} />}
-              /> */}
             </Route>
           </Routes>
         </IsAuth>

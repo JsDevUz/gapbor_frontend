@@ -2,7 +2,7 @@ import classNames from "classnames";
 import CustomImg from "components/image";
 import useGetMe from "hooks/useGetMe";
 import useModal from "hooks/useModal";
-import { size } from "lodash";
+import { get, size } from "lodash";
 import { useEffect, useState } from "react";
 import { AiOutlinePlusCircle, AiOutlineSetting } from "react-icons/ai";
 import { HiOutlineLogout, HiOutlineUser, HiOutlineUsers } from "react-icons/hi";
@@ -15,13 +15,19 @@ import { RxDashboard } from "react-icons/rx";
 import { useNavigate, useParams } from "react-router-dom";
 import { getKey, removeKey, setKey } from "services/storage";
 import { getGroupsNofiy, getNofiy, getUsersNofiy } from "utils";
+import { MdVideoCall } from "react-icons/md";
 
 function NavBar() {
   const [menu, setMenu] = useState("all");
   const { chatId } = useParams();
-  const { setAlert, setDialog, setTheme, notifications, theme } = useModal();
+  const { setAlert, setTheme, notifications, theme,setDialog } = useModal();
   const { getMe, setMe } = useGetMe();
   const navigate = useNavigate();
+  
+  // Meet yaratish dialog state
+  const [showMeetDialog, setShowMeetDialog] = useState(false);
+  const [meetTitle, setMeetTitle] = useState("Video Meeting");
+  const [meetDescription, setMeetDescription] = useState("");
   useEffect(() => {
     setKey("menu", getKey("menu") == "null" ? "all" : getKey("menu"));
     setMenu(getKey("menu") == "null" ? "all" : getKey("menu"));
@@ -44,7 +50,78 @@ function NavBar() {
     setMenu(e);
   };
 
+  // Meet yaratish funksiyasi
+  const createMeet = async () => {
+    try {
+      const token = getKey("token");
+      const user = get(getMe, "_id");
+      
+      if (!user || !token) {
+        setAlert("Iltimos avval tizimga kiring", "error");
+        return;
+      }
+
+      // Dialogni ochish
+      setShowMeetDialog(true);
+    } catch (error) {
+      console.error("Meet create error:", error);
+      setAlert("Meet yaratishda xatolik", "error");
+    }
+  };
+
+  // Meet yaratishni tasdiqlash
+  const handleCreateMeetConfirm = async () => {
+    try {
+      const token = getKey("token");
+      
+      // Meet yaratish
+      const response = await fetch(`${process.env.REACT_APP_PUBLIC_SERVER_URL}api/meet/create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: meetTitle,
+          description: meetDescription
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        const meetLink = `${window.location.origin}/meet/${result.meet.meetId}`;
+        
+        // Link nusxalash
+        navigator.clipboard.writeText(meetLink);
+        
+        // Meet sahifasiga o'tish
+        navigate(`/meet/${result.meet.meetId}`);
+        
+        setAlert(`Meet yaratildi! Link nusxalandi: ${meetLink}`, "success");
+        
+        // Dialogni yopish va state ni tozalash
+        setShowMeetDialog(false);
+        setMeetTitle("Video Meeting");
+        setMeetDescription("");
+      } else {
+        setAlert(result.message || "Meet yaratishda xatolik", "error");
+      }
+    } catch (error) {
+      console.error("Meet create error:", error);
+      setAlert("Meet yaratishda xatolik", "error");
+    }
+  };
+
+  // Dialogni bekor qilish
+  const handleMeetDialogCancel = () => {
+    setShowMeetDialog(false);
+    setMeetTitle("Video Meeting");
+    setMeetDescription("");
+  };
+
   return (
+    <>
     <div className={classNames("nav-bar-wrapper")}>
       <div className="icons-wrapper">
         <div
@@ -77,6 +154,13 @@ function NavBar() {
               {getGroupsNofiy(notifications)}
             </span>
           )}
+        </div>
+        <div
+          className="icon"
+          onClick={createMeet}
+          title="Yangi Meet yaratish"
+        >
+          <MdVideoCall size={22} />
         </div>
         <div
           className={classNames("icon", { active: menu == "lives" })}
@@ -139,6 +223,98 @@ function NavBar() {
         <CustomImg image={getMe.pic} />
       </div>
     </div>
+    
+    {showMeetDialog && (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000
+      }}>
+        <div style={{
+          backgroundColor: 'white',
+          padding: '30px',
+          borderRadius: '10px',
+          minWidth: '400px',
+          maxWidth: '500px',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+        }}>
+          <h2 style={{ marginBottom: '20px', color: '#333' }}>Yangi Meet yaratish</h2>
+          
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', marginBottom: '5px', color: '#666' }}>Meet nomi:</label>
+            <input
+              type="text"
+              value={meetTitle}
+              onChange={(e) => setMeetTitle(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px',
+                border: '1px solid #ddd',
+                borderRadius: '5px',
+                fontSize: '14px'
+              }}
+              placeholder="Meet nomi"
+            />
+          </div>
+          
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', marginBottom: '5px', color: '#666' }}>Tavsif (ixtiyoriy):</label>
+            <textarea
+              value={meetDescription}
+              onChange={(e) => setMeetDescription(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px',
+                border: '1px solid #ddd',
+                borderRadius: '5px',
+                fontSize: '14px',
+                minHeight: '80px',
+                resize: 'vertical'
+              }}
+              placeholder="Meet tavsifi"
+            />
+          </div>
+          
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <button
+              onClick={handleMeetDialogCancel}
+              style={{
+                padding: '10px 20px',
+                border: '1px solid #ddd',
+                borderRadius: '5px',
+                backgroundColor: '#f5f5f5',
+                cursor: 'pointer',
+                fontSize: '14px'
+              }}
+            >
+              Bekor qilish
+            </button>
+            <button
+              onClick={handleCreateMeetConfirm}
+              style={{
+                padding: '10px 20px',
+                border: 'none',
+                borderRadius: '5px',
+                backgroundColor: '#007bff',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '14px'
+              }}
+            >
+              Yaratish
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 

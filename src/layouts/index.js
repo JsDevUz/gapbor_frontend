@@ -12,7 +12,7 @@ function MainLayout({ children }) {
     <>
       <CustomAlert />
       <Toast />
-      <Loading />
+      {/* <Loading /> */}
       {children}
     </>
   );
