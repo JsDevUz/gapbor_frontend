@@ -99,8 +99,13 @@ export const cleanNotifications = (notifications, setNotifications, chatId) => {
   setNotifications((prev) => notify);
 };
 export const isReadedMyMessage = (message, senderID) => {
+  let readBy = get(message, "readBy", []);
+  if (!Array.isArray(readBy)) {
+    return false;
+  }
+  
   if (
-    size(get(message, "readBy")) > 1 &&
+    readBy.length > 1 &&
     get(message, "sender._id") === senderID
   )
     return true;
@@ -108,30 +113,40 @@ export const isReadedMyMessage = (message, senderID) => {
 };
 
 export const iReadThisMessageBefore = (message, senderID, selectChat) => {
-  if (get(selectChat, "chat.type") === "group") {
-    let readMe = get(message, "readBy").filter((userId) => userId === senderID);
+  if (get(selectChat, "chat.type") === "user") {
+    let readMe = get(message, "readBy", []);
+    if (Array.isArray(readMe)) {
+      readMe = readMe.filter((userId) => userId === senderID);
+    }
 
     if (
-      size(readMe) > 0 &&
-      get(message, "sender._id") !== senderID &&
-      readMe.includes(senderID)
+      Array.isArray(readMe) &&
+      readMe.length > 0 &&
+      get(message, "sender._id") !== senderID
     ) {
       return true;
     } else {
       return false;
     }
   } else {
-    let readMe = get(message, "readBy").filter((userId) => userId === senderID);
+    let readBy = get(message, "readBy", []);
+    if (!Array.isArray(readBy)) {
+      return false;
+    }
+    
+    let readMe = readBy.filter((userId) => userId === senderID);
 
     if (
-      size(get(message, "readBy")) > 1 &&
-      get(message, "sender._id") !== senderID &&
-      readMe.includes(senderID)
+      Array.isArray(readBy) &&
+      readBy.length > 0 &&
+      readBy.length > 1 &&
+      get(message, "sender._id") !== senderID
     )
       return true;
     else return false;
   }
 };
+
 export const getNofiy = (notifys, chat) => {
   let num = 0;
   for (const notify of notifys) {

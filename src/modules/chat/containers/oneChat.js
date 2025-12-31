@@ -40,21 +40,68 @@ const OneChat = (props) => {
   const lastMessage = useRef([]);
   const selectChatFunc = async (chatId, isUrlSelect = false) => {
     setTyping(false);
+    
+    // Socket connection holatini tekshirish
+    if (!socket.connected) {
+      setToast({
+        toast: true,
+        text: "Server bilan aloqa yo'q. Qaytadan urinib ko'ring.",
+        type: "error"
+      });
+      return;
+    }
+    
+    // Loading state qo'shish
+    setLoading({ loading: true, small: true });
+    
     if (!isUrlSelect) navigate(`/chats/${chatId}`);
-    socket.emit("chat:select", { chatId, userId: getMe._id }, (res) => {
-      if (res.isOk) {
-        setSelectChat({ chat: res.chat, messages: res.messages });
-        // socket.emit("chat:join", res.chat._id);
-        setLastAction("select_chat");
-        // setLoading({ loading: false });
-      } else {
+    
+    // Socket timeout qo'shish
+    const timeout = setTimeout(() => {
+      setLoading({ loading: false });
+      setToast({
+        toast: true,
+        text: "Chat tanlashda xatolik. Qaytadan urinib ko'ring.",
+        type: "error"
+      });
+    }, 5000); // 5 sekund timeout
+    
+    // Retry mechanism
+    const retrySelect = (attempt = 1) => {
+      if (attempt > 3) {
+        clearTimeout(timeout);
+        setLoading({ loading: false });
         setToast({
           toast: true,
-          text: get(res, "message"),
+          text: "Chat tanlash muvaffaqiyatsiz. Keyinroq urinib ko'ring.",
+          type: "error"
         });
-        navigate("/chats/all");
+        return;
       }
-    });
+      
+      socket.emit("chat:select", { chatId, userId: getMe._id }, (res) => {
+        if (res && res.isOk) {
+          clearTimeout(timeout);
+          setLoading({ loading: false });
+          setSelectChat({ chat: res.chat, messages: res.messages });
+          setLastAction("select_chat");
+        } else if (attempt <= 3) {
+          // Retry with delay
+          setTimeout(() => retrySelect(attempt + 1), 1000 * attempt);
+        } else {
+          clearTimeout(timeout);
+          setLoading({ loading: false });
+          setToast({
+            toast: true,
+            text: get(res, "message", "Chat tanlashda xatolik"),
+            type: "error"
+          });
+          navigate("/chats/all");
+        }
+      });
+    };
+    
+    retrySelect();
   };
   const getChats = (userId) => {
     if (get(selectChat, "chat._id") === userId) return;
@@ -80,21 +127,28 @@ const OneChat = (props) => {
     console.log(webrtcService,socket);
     
     // Global WebRTC service ni yaratish
-    //ff
     if (!webrtcService.current) {
       webrtcService.current = new WebRTCService(socket);
+    }
+    
+    // Event handlers ni har doim o'rnatish (service mavjud bo'lsa ham)
+    webrtcService.current.onIncomingCall = (callData) => {
+      console.log("Incoming call:",callData);
       
-      webrtcService.current.onIncomingCall = (callData) => {
-        console.log("Incoming call:",callData);
-        
-        setIncomingCall(callData);
-        setShowVideoCall(true);
-      };
+      setIncomingCall(callData);
+      setShowVideoCall(true);
+    };
       
       // Global socket listeners for WebRTC
       socket.on('call:incoming', (data) => {
         console.log('call:incoming yetib keldi oneChatga',data);
-        webrtcService.current.handleIncomingCall(data);
+        
+        // Safety check before calling handleIncomingCall
+        if (webrtcService.current && typeof webrtcService.current.handleIncomingCall === 'function') {
+          webrtcService.current.handleIncomingCall(data);
+        } else {
+          console.warn('webrtcService.current or handleIncomingCall is not available');
+        }
       });
       
       socket.on('call:offer-received', (data) => {
@@ -144,25 +198,27 @@ const OneChat = (props) => {
         setShowVideoCall(false);
         setIncomingCall(null);
       });
-    }
+      
+      socket.off("typing:start");
+      socket.on("typing:start", (userId) => {
+        if (get(selectChat, "chat._id") === userId) {
+          userId != getMe._id && setTyping(true);
+        }
+      });
+      socket.off("typing:stop");
+      socket.on("typing:stop", (userId) => userId != getMe._id && setTyping(false));
     
-    socket.off("typing:start").on("typing:start", (userId) => {
-      if (get(selectChat, "chat._id") === userId) {
-        userId != getMe._id && setTyping(true);
-      }
-    });
-    socket
-      .off("typing:stop")
-      .on("typing:stop", (userId) => userId != getMe._id && setTyping(false));
   }, [getMe, selectChat]);
   useEffect(() => {
     getChats(getMe._id);
   }, [getMe]);
   useEffect(() => {
-    socket.off("new:onlineUser").on("new:onlineUser", (e) => {
+    socket.off("new:onlineUser");
+    socket.on("new:onlineUser", (e) => {
       if (!onlineUsers.includes(e)) setOnlineUsers((prev) => [...prev, e]);
     });
-    socket.off("user:disconnected").on("user:disconnected", (e) => {
+    socket.off("user:disconnected");
+    socket.on("user:disconnected", (e) => {
       let newUserList = onlineUsers.filter((u) => u != e);
       setOnlineUsers(newUserList);
     });
@@ -198,9 +254,8 @@ const OneChat = (props) => {
           }));
         }
       });
-    socket
-      .off("deleted:message:received")
-      .on("deleted:message:received", (newmessage) => {
+    socket.off("deleted:message:received");
+    socket.on("deleted:message:received", (newmessage) => {
         if (checkUserSelectThisChat(selectChat, newmessage)) {
           let groupIndex = 0;
           let messageIndex = 0;
@@ -237,19 +292,23 @@ const OneChat = (props) => {
         setNotifications([...newNotifys]);
         // }
       });
-    socket.off("newUserJoin").on("newUserJoin", (chat) => {
+    socket.off("newUserJoin");
+    socket.on("newUserJoin", (chat) => {
       setSelectChat((prev) => ({ ...prev, chat: chat }));
     });
-    socket.off("user:new").on("user:new", (chats) => {
+    socket.off("user:new");
+    socket.on("user:new", (chats) => {
       setChats(chats);
     });
 
-    socket.off("newChat").on("newChat", (chat) => {
+    socket.off("newChat");
+    socket.on("newChat", (chat) => {
       if (size(chats.filter((c) => c._id == chat._id)) == 0) {
         setChats((prev) => [...prev, chat]);
       }
     });
-    socket.off("group:change").on("group:change", (chat) => {
+    socket.off("group:change");
+    socket.on("group:change", (chat) => {
       if (get(selectChat, "chat._id") == chat._id) {
         setSelectChat((prev) => ({ ...prev, chat: chat }));
 
@@ -263,13 +322,15 @@ const OneChat = (props) => {
       });
       setChats([...chats]);
     });
-    socket.off("message:newUser").on("message:newUser", (chat) => {
+    socket.off("message:newUser");
+    socket.on("message:newUser", (chat) => {
       if (size(chats.filter((c) => c._id == chat._id)) == 0) {
         setChats((prev) => [...prev, chat]);
       }
     });
 
-    socket.off("kikyou").on("kikyou", (chat) => {
+    socket.off("kikyou");
+    socket.on("kikyou", (chat) => {
       if (get(selectChat, "chat._id") == chat._id) {
         setSelectChat({});
         setDialog({ dialog: false });
@@ -279,15 +340,15 @@ const OneChat = (props) => {
       setChats((prev) => prev.filter((c) => c._id != chat._id));
     });
 
-    socket.off("addyou").on("addyou", (chat) => {
+    socket.off("addyou");
+    socket.on("addyou", (chat) => {
       if (size(chats.filter((c) => c._id == chat._id)) == 0) {
         setChats((prev) => [...prev, chat]);
       }
     });
 
-    socket
-      .off("message:received")
-      .on("message:received", ({ newmessage, isFirstMessgae }) => {
+    socket.off("message:received");
+    socket.on("message:received", ({ newmessage, isFirstMessgae }) => {
         if (checkUserSelectThisChat(selectChat, newmessage)) {
           let messagesOfToday;
           if (

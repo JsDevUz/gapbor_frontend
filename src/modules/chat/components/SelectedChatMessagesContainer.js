@@ -29,6 +29,7 @@ function SelectedChatMessagesContainer({ lastMessage, onlineUsers: propOnlineUse
   const [readedMessage, setReadedMessage] = useState([]);
   const [toReplayId, setToReplayId] = useState(null);
   const messageInput = useRef([]);
+  const messagesContainerRef = useRef(null); // Scroll container ref
 
   const [selectedMessage, setSelectedMessage] = useState();
   const {
@@ -46,6 +47,18 @@ function SelectedChatMessagesContainer({ lastMessage, onlineUsers: propOnlineUse
     setChats,
   } = useModal();
   const navigate = useNavigate();
+
+  // Scroll to bottom function
+  const scrollToBottom = (smooth = true) => {
+    if (messagesContainerRef.current) {
+      const scrollOptions = {
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: smooth ? 'smooth' : 'auto'
+      };
+      messagesContainerRef.current.scrollTo(scrollOptions);
+    }
+  };
+
   const getUserStatus = (data) => {
     return onlineUsers.includes(get(selectChat, "chat._id"))
       ? "tarmoqda"
@@ -58,6 +71,13 @@ function SelectedChatMessagesContainer({ lastMessage, onlineUsers: propOnlineUse
     setSelectedMessage();
     // setSelectChat();
   }, [chatId]);
+
+  // Scroll to bottom when chat changes or messages update
+  useEffect(() => {
+    if (selectChat && selectChat.messages) {
+      setTimeout(() => scrollToBottom(), 100);
+    }
+  }, [selectChat?.messages, chatId]);
   const sendMessage = async (message) => {
     if (size(message?.trim()) <= 0) return;
     if (selectedMessage?.action == "edit") {
@@ -105,12 +125,45 @@ function SelectedChatMessagesContainer({ lastMessage, onlineUsers: propOnlineUse
       );
     } else {
       setSelectedMessage();
+      
+      // Xabarni darhol UI ga qo'shish (pending status bilan)
+      const tempMessage = {
+        _id: `temp_${Date.now()}_${Math.random()}`,
+        content: message,
+        sender: getMe,
+        sender_type: get(selectChat, "chat.type"),
+        chat: get(selectChat, "chat"),
+        parentId: get(selectedMessage, "message._id", null),
+        status: 'sending', // pending status
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      // Xabarni darhol UI ga qo'shish
+      let messagesOfToday;
+      if (get(last(selectChat.messages), "_id") === format(new Date(), "yyyy/MM/dd")) {
+        messagesOfToday = size(selectChat.messages) - 1;
+      } else {
+        messagesOfToday = size(selectChat.messages);
+        selectChat.messages[messagesOfToday] = { _id: "", messages: [] };
+        selectChat.messages[messagesOfToday]._id = format(new Date(), "yyyy/MM/dd");
+      }
+      
+      selectChat.messages[messagesOfToday].messages.push(tempMessage);
+      setSelectChat((prev) => ({
+        ...prev,
+        messages: [...selectChat.messages],
+      }));
+      
+      // Scroll to bottom after adding message
+      setTimeout(() => scrollToBottom(), 100);
+      
+      // Backend ga yuborish
       socket.emit(
         "message:send",
         {
           content: message,
           sender: getMe._id,
-
           sender_type: get(selectChat, "chat.type"),
           chat: get(selectChat, "chat"),
           parentId: get(selectedMessage, "message._id", null),
@@ -118,29 +171,29 @@ function SelectedChatMessagesContainer({ lastMessage, onlineUsers: propOnlineUse
         },
         (res) => {
           if (res.isOk) {
-            let messagesOfToday;
-            if (
-              get(last(selectChat.messages), "_id") ===
-              format(new Date(), "yyyy/MM/dd")
-            ) {
-              messagesOfToday = size(selectChat.messages) - 1;
-            } else {
-              messagesOfToday = size(selectChat.messages);
-              selectChat.messages[messagesOfToday] = { _id: "", messages: [] };
+            // Success - temp message ni real message bilan almashtirish
+            const messages = selectChat.messages[messagesOfToday].messages;
+            const tempIndex = messages.findIndex(msg => msg._id === tempMessage._id);
+            
+            if (tempIndex !== -1) {
+              messages[tempIndex] = {
+                ...res.message,
+                status: 'sent' // success status
+              };
             }
-            selectChat.messages[messagesOfToday].messages.push(res.message);
-            selectChat.messages[messagesOfToday]._id = format(
-              new Date(),
-              "yyyy/MM/dd"
-            );
-            let lastChtId = res.message.chat._id;
+            
             setSelectChat((prev) => ({
               ...prev,
               messages: [...selectChat.messages],
             }));
+            
+            // Scroll to bottom after successful send
+            setTimeout(() => scrollToBottom(), 100);
+            
+            // Chat listni yangilash
             let newChats = chats;
             chats.map((c, i) => {
-              if (c._id === lastChtId) newChats[i].latestMessage = res.message;
+              if (c._id === res.message.chat._id) newChats[i].latestMessage = res.message;
             });
             setChats(newChats);
 
@@ -156,13 +209,34 @@ function SelectedChatMessagesContainer({ lastMessage, onlineUsers: propOnlineUse
                 { ...get(selectChat, "chat"), latestMessage: res.message },
               ]);
             }
+            
             socket.emit("typing:stop", get(selectChat, "chat._id"));
-
             setLastAction("send_message");
+            
           } else {
+            // Error - temp message statusini error qilish
+            const messages = selectChat.messages[messagesOfToday].messages;
+            const tempIndex = messages.findIndex(msg => msg._id === tempMessage._id);
+            
+            if (tempIndex !== -1) {
+              messages[tempIndex] = {
+                ...tempMessage,
+                status: 'error' // error status
+              };
+            }
+            
+            setSelectChat((prev) => ({
+              ...prev,
+              messages: [...selectChat.messages],
+            }));
+            
+            // Scroll to bottom after error status update
+            setTimeout(() => scrollToBottom(), 100);
+            
             setToast({
               toast: true,
-              text: get(res, "message"),
+              text: get(res, "message", "Xabar yuborilmadi"),
+              type: "error"
             });
           }
         }
@@ -295,7 +369,7 @@ function SelectedChatMessagesContainer({ lastMessage, onlineUsers: propOnlineUse
               )}
             </div>
           </div>
-          <div className="one-chat-messages-wrapper">
+          <div ref={messagesContainerRef} className="one-chat-messages-wrapper">
             {size(get(selectChat, "messages", [])) > 0 &&
             !isEmptyAllGroupMessages(selectChat.messages) ? (
               <>

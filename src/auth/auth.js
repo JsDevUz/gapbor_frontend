@@ -15,7 +15,7 @@ export const Auth = ({ children }) => {
   const getMe = async () => {
     setLoading({ loading: true, small: false });
     const res = await ApiServices.getMe();
-    console.log(res, "llll");
+    console.log(res, "User data");
     if (res.isOk) {
       setMe(res.data);
       setLoading({ loading: false });
@@ -23,9 +23,15 @@ export const Auth = ({ children }) => {
       setLoading({ loading: false });
     }
   };
+  
   useEffect(() => {
-    getMe();
+    if (token) {
+      getMe();
+    } else {
+      setLoading({ loading: false });
+    }
   }, [token]);
+  
   return (
     <AuthProvider
       value={{

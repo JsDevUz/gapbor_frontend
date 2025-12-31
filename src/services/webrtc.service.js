@@ -122,30 +122,27 @@ class WebRTCService {
 
     this.peerConnection.ontrack = (event) => {
       console.log('Received remote track:', event);
-      console.log('Track event details:', {
-        track: event.track,
-        streams: event.streams,
-        receiver: event.receiver,
-        transceiver: event.transceiver
-      });
-      
-      // iOS uchun maxsus stream handling
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
       
       if (event.streams && event.streams[0]) {
         this.remoteStream = event.streams[0];
-        console.log('Remote stream set:', this.remoteStream);
-        console.log('Remote stream tracks:', this.remoteStream.getTracks().map(track => ({
-          kind: track.kind,
-          label: track.label,
-          enabled: track.enabled,
-          muted: track.muted,
-          readyState: track.readyState
-        })));
+        console.log('Remote stream set from event.streams[0]', {
+          streams: event.streams,
+          receiver: event.receiver,
+          transceiver: event.transceiver
+        });
         
-        // iOS uchun track enable qilish
+        // iOS uchun maxsus stream handling
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         if (isIOS) {
-          this.remoteStream.getTracks().forEach(track => {
+          console.log('iOS detected - special stream handling');
+          event.streams[0].getTracks().forEach(track => {
+            console.log(`iOS track: ${track.kind}`, {
+              enabled: track.enabled,
+              muted: track.muted,
+              readyState: track.readyState
+            });
+            
+            // iOS uchun track enable qilish
             if (!track.enabled) {
               console.log(`Enabling ${track.kind} track on iOS`);
               track.enabled = true;
@@ -153,16 +150,22 @@ class WebRTCService {
           });
         }
         
-        if (this.onRemoteStream) {
+        // Safety check before calling onRemoteStream
+        if (typeof this.onRemoteStream === 'function') {
           this.onRemoteStream(this.remoteStream);
+        } else {
+          console.warn('onRemoteStream is not a function');
         }
       } else if (event.track) {
         // iOS da ba'zida stream bo'lmaydi, faqat track keladi
         console.log('Creating stream from track (iOS fallback)');
         this.remoteStream = new MediaStream([event.track]);
         
-        if (this.onRemoteStream) {
+        // Safety check before calling onRemoteStream
+        if (typeof this.onRemoteStream === 'function') {
           this.onRemoteStream(this.remoteStream);
+        } else {
+          console.warn('onRemoteStream is not a function');
         }
       }
     };
@@ -228,7 +231,12 @@ console.log('call:initiate qilindi yuboruvchidan');
     };
     console.log('onIncomingCall ga');
     
-    this.onIncomingCall(callData);
+    // Safety check before calling
+    if (typeof this.onIncomingCall === 'function') {
+      this.onIncomingCall(callData);
+    } else {
+      console.warn('onIncomingCall is not a function');
+    }
   }
 
   async acceptCall() {

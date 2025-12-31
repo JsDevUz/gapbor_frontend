@@ -9,6 +9,7 @@ import {
   FiUserPlus,
 } from "react-icons/fi";
 import useModal from "hooks/useModal";
+import "./MeetVideoCall.css";
 
 const MeetVideoCall = ({ socket, currentUser, onClose, meetId }) => {
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
@@ -1229,101 +1230,44 @@ const MeetVideoCall = ({ socket, currentUser, onClose, meetId }) => {
   }, [remoteStreams]);
 
   return (
-    <div
-      style={{
-        height: "100vh",
-        backgroundColor: "#000",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+    <div className="meet-video-container">
       {/* Header */}
-      <div
-        style={{
-          backgroundColor: "#2c3e50",
-          padding: "10px 20px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <div
-          style={{
-            color: "white",
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-          }}
-        >
+      <div className="meet-video-header">
+        <div className="meet-video-info">
           <FiUsers />
-          <span>Meet ID: {meetId}</span>
-          <span>({participants.length} participants)</span>
-          {isCreator && (
-            <span
-              style={{
-                backgroundColor: "#f39c12",
-                color: "white",
-                padding: "2px 8px",
-                borderRadius: "12px",
-                fontSize: "12px",
-                fontWeight: "bold",
-              }}
-            >
-              👑 You are creator
-            </span>
-          )}
+          <div>
+            <h3 className="meet-video-title">Meet ID: {meetId}</h3>
+            <div className="meet-video-meta">
+              <span>{participants.length} participants</span>
+              {isCreator && (
+                <span className="meet-creator-badge">
+                  👑 Creator
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div style={{ display: "flex", gap: "10px" }}>
+        <div className="meet-video-controls">
           <button
             onClick={toggleAudio}
-            style={{
-              padding: "8px 16px",
-              border: "none",
-              borderRadius: "5px",
-              backgroundColor: isAudioEnabled ? "#27ae60" : "#e74c3c",
-              color: "white",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "5px",
-            }}
+            className="control-btn control-btn-mic"
           >
             {isAudioEnabled ? <FiMic /> : <FiMicOff />}
-            {isAudioEnabled ? "Audio" : "Audio Off"}
+            {isAudioEnabled ? "Audio" : "Muted"}
           </button>
 
           <button
             onClick={toggleVideo}
-            style={{
-              padding: "8px 16px",
-              border: "none",
-              borderRadius: "5px",
-              backgroundColor: isVideoEnabled ? "#27ae60" : "#e74c3c",
-              color: "white",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "5px",
-            }}
+            className="control-btn control-btn-video"
           >
             {isVideoEnabled ? <FiVideo /> : <FiVideoOff />}
-            {isVideoEnabled ? "Video" : "Video Off"}
+            {isVideoEnabled ? "Video" : "Off"}
           </button>
 
           <button
             onClick={onClose}
-            style={{
-              padding: "8px 16px",
-              border: "none",
-              borderRadius: "5px",
-              backgroundColor: "#e74c3c",
-              color: "white",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "5px",
-            }}
+            className="control-btn control-btn-leave"
           >
             <FiPhone />
             Leave
@@ -1332,83 +1276,32 @@ const MeetVideoCall = ({ socket, currentUser, onClose, meetId }) => {
       </div>
 
       {/* Video Grid */}
-      <div
-        style={{
-          flex: 1,
-          display: "grid",
-          gridTemplateColumns: participants.length > 0 ? "1fr 1fr" : "1fr",
-          gap: "10px",
-          padding: "10px",
-          backgroundColor: "#1a1a1a",
-          position: "relative",
-        }}
-      >
+      <div className={`meet-video-grid video-grid-${Math.min(participants.length + 1, 9)}`}>
         {/* Join requests (creator uchun) */}
         {joinRequests.length > 0 && (
-          <div
-            style={{
-              position: "absolute",
-              top: "10px",
-              right: "10px",
-              backgroundColor: "rgba(0,0,0,0.8)",
-              borderRadius: "10px",
-              padding: "10px",
-              minWidth: "250px",
-              zIndex: 10,
-            }}
-          >
-            <h4
-              style={{ color: "white", margin: "0 0 10px 0", fontSize: "14px" }}
-            >
-              <FiUserPlus /> Qo'shilish so'rovlari ({joinRequests.length})
+          <div className="join-requests-panel">
+            <h4 className="requests-header">
+              <FiUserPlus /> Join Requests ({joinRequests.length})
             </h4>
             {joinRequests.map((request) => (
-              <div
-                key={request.socketId}
-                style={{
-                  backgroundColor: "#fff3cd",
-                  border: "1px solid #ffeaa7",
-                  borderRadius: "5px",
-                  padding: "8px",
-                  marginBottom: "5px",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    marginBottom: "8px",
-                  }}
-                >
+              <div key={request.socketId} className="request-item">
+                <div className="request-info">
                   <img
                     src={request.user.pic}
                     alt={request.user.fullName}
-                    style={{
-                      width: "25px",
-                      height: "25px",
-                      borderRadius: "50%",
-                      objectFit: "cover",
-                    }}
+                    className="request-avatar"
                   />
-                  <span style={{ fontSize: "12px", fontWeight: "bold" }}>
-                    {request.user.fullName}
-                  </span>
+                  <div className="request-details">
+                    <div className="request-name">{request.user.fullName}</div>
+                    <div className="request-time">Waiting to join...</div>
+                  </div>
                 </div>
-                <div style={{ display: "flex", gap: "5px" }}>
+                <div className="request-buttons">
                   <button
                     onClick={() => handleApproveRequest(request)}
-                    style={{
-                      padding: "4px 8px",
-                      border: "none",
-                      borderRadius: "3px",
-                      backgroundColor: "#28a745",
-                      color: "white",
-                      cursor: "pointer",
-                      fontSize: "10px",
-                    }}
+                    className="btn-request-approve"
                   >
-                    Qabul qil
+                    Approve
                   </button>
                   <button
                     onClick={() =>
@@ -1416,17 +1309,9 @@ const MeetVideoCall = ({ socket, currentUser, onClose, meetId }) => {
                         prev.filter((req) => req.socketId !== request.socketId)
                       )
                     }
-                    style={{
-                      padding: "4px 8px",
-                      border: "none",
-                      borderRadius: "3px",
-                      backgroundColor: "#dc3545",
-                      color: "white",
-                      cursor: "pointer",
-                      fontSize: "10px",
-                    }}
+                    className="btn-request-reject"
                   >
-                    Rad et
+                    Reject
                   </button>
                 </div>
               </div>
@@ -1435,101 +1320,50 @@ const MeetVideoCall = ({ socket, currentUser, onClose, meetId }) => {
         )}
 
         {/* Local Video */}
-        <div
-          style={{
-            backgroundColor: "#2c3e50",
-            borderRadius: "10px",
-            overflow: "hidden",
-            position: "relative",
-            aspectRatio: "16/9",
-          }}
-        >
+        <div className="video-container video-container-local">
           <video
             ref={localVideoRef}
             autoPlay
             muted
             playsInline
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-            }}
+            className="video-element"
           />
-          <div
-            style={{
-              position: "absolute",
-              bottom: "10px",
-              left: "10px",
-              backgroundColor: "rgba(0,0,0,0.7)",
-              color: "white",
-              padding: "5px 10px",
-              borderRadius: "5px",
-              fontSize: "12px",
-            }}
-          >
-            {currentUser?.fullName} (You)
+          <div className="video-overlay">
+            <div className="video-name">
+              {currentUser?.fullName} (You)
+            </div>
+            <div className="video-status">
+              <div className="status-indicator status-connected"></div>
+            </div>
           </div>
         </div>
 
         {/* Remote Videos */}
-        {console.log("Current remoteStreams:", remoteStreams)}
-        {console.log("Current participants:", participants)}
         {Object.entries(remoteStreams).map(([userId, stream]) => {
           const participant = participants.find((p) => p._id === userId);
-          console.log(
-            "Rendering remote video for:",
-            userId,
-            stream,
-            participant
-          );
           return (
-            <div
-              key={userId}
-              style={{
-                backgroundColor: "#2c3e50",
-                borderRadius: "10px",
-                overflow: "hidden",
-                position: "relative",
-                aspectRatio: "16/9",
-              }}
-            >
+            <div key={userId} className="video-container video-container-remote">
               <video
                 autoPlay
                 playsInline
                 muted
+                className="video-element"
                 ref={(videoEl) => {
                   if (videoEl) {
                     remoteVideoRefs.current[userId] = videoEl;
-                    // Streamni video elementga o'rnatish
                     if (stream) {
                       videoEl.srcObject = stream;
-                      console.log(
-                        "Remote video srcObject set for user:",
-                        userId
-                      );
-                      // Video playback is handled by the remoteStreams useEffect
                     }
                   }
                 }}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                }}
               />
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: "10px",
-                  left: "10px",
-                  backgroundColor: "rgba(0,0,0,0.7)",
-                  color: "white",
-                  padding: "5px 10px",
-                  borderRadius: "5px",
-                  fontSize: "12px",
-                }}
-              >
-                {participant?.fullName || `User ${userId.slice(-6)}`}
+              <div className="video-overlay">
+                <div className="video-name">
+                  {participant?.fullName || `User ${userId.slice(-6)}`}
+                </div>
+                <div className="video-status">
+                  <div className="status-indicator status-connected"></div>
+                </div>
               </div>
             </div>
           );

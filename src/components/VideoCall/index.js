@@ -16,6 +16,15 @@ const VideoCallContainer = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    padding: 10px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 5px;
+  }
 `;
 
 const VideoGrid = styled.div`
@@ -26,9 +35,19 @@ const VideoGrid = styled.div`
   max-width: 1200px;
   height: 70vh;
   
+  /* Mobile responsive */
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
-    height: 80vh;
+    grid-template-rows: 1fr 1fr;
+    gap: 10px;
+    height: 60vh;
+    width: 95%;
+  }
+  
+  @media (max-width: 480px) {
+    gap: 8px;
+    height: 50vh;
+    width: 98%;
   }
 `;
 
@@ -65,6 +84,23 @@ const ControlsContainer = styled.div`
   background: rgba(255, 255, 255, 0.1);
   border-radius: 50px;
   backdrop-filter: blur(10px);
+  
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    gap: 15px;
+    margin-top: 20px;
+    padding: 15px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  @media (max-width: 480px) {
+    gap: 10px;
+    margin-top: 15px;
+    padding: 10px;
+    flex-direction: column;
+    align-items: center;
+  }
 `;
 
 const ControlButton = styled.button`
@@ -78,6 +114,19 @@ const ControlButton = styled.button`
   cursor: pointer;
   transition: all 0.3s ease;
   font-size: 20px;
+  
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    width: 45px;
+    height: 45px;
+    font-size: 18px;
+  }
+  
+  @media (max-width: 480px) {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
   
   &:hover {
     transform: scale(1.1);
@@ -121,6 +170,21 @@ const IncomingCallModal = styled.div`
   z-index: 1001;
   text-align: center;
   min-width: 300px;
+  
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    padding: 20px;
+    min-width: 280px;
+    width: 90%;
+    max-width: 350px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 15px;
+    min-width: 250px;
+    width: 95%;
+    max-width: 300px;
+  }
 `;
 
 const CallerInfo = styled.div`
@@ -148,6 +212,18 @@ const CallButtons = styled.div`
   display: flex;
   gap: 15px;
   justify-content: center;
+  
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  
+  @media (max-width: 480px) {
+    gap: 8px;
+    flex-direction: column;
+    align-items: center;
+  }
 `;
 
 const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, webrtcService: externalWebrtcService }) => {
@@ -186,16 +262,7 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
       webrtcService.current = externalWebrtcService;
       
       // Tashqi WebRTC service uchun event handlers o'rnatish
-      externalWebrtcService.onIncomingCall = (callData) => {
-        console.log('onIncomingCall kelllldi');
-        
-        setCallerInfo({
-          callerId: callData.callerId,
-          callerName: callData.callerName,
-          callerPic: callData.callerPic
-        });
-        setIsIncomingCall(true);
-      };
+      // onIncomingCall oneChat.js da o'rnatilgan, shu uchun bu yerda qilmaslik kerak
       
       externalWebrtcService.onRemoteStream = (stream) => {
         console.log('Remote stream received in VideoCall:', stream);
@@ -334,14 +401,47 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
 
   useEffect(() => {
     return () => {
+      console.log('VideoCall component unmounting - cleaning up...');
+      
       if (webrtcService.current) {
-        webrtcService.current.cleanup();
+        // Faqat stream larni to'xtatish, service ni o'chirish yo'q
+        if (webrtcService.current.localStream) {
+          webrtcService.current.localStream.getTracks().forEach(track => {
+            track.stop();
+            console.log('Local track stopped:', track.kind);
+          });
+          webrtcService.current.localStream = null;
+        }
+        
+        if (webrtcService.current.remoteStream) {
+          webrtcService.current.remoteStream.getTracks().forEach(track => {
+            track.stop();
+            console.log('Remote track stopped:', track.kind);
+          });
+          webrtcService.current.remoteStream = null;
+        }
+        
+        // Peer connection ni yopish
+        if (webrtcService.current.peerConnection) {
+          webrtcService.current.peerConnection.close();
+          webrtcService.current.peerConnection = null;
+        }
+        
+        // Call state ni reset
+        webrtcService.current.isCallActive = false;
+        webrtcService.current.callId = null;
+        webrtcService.current.remoteUserId = null;
+        webrtcService.current.callerInfo = null;
+        
+        console.log('WebRTC call cleaned up (service preserved)');
       }
     };
   }, []);
 
   useEffect(() => {
     // Agar incomingCall bo'lsa, uni WebRTC service ga uzatish
+    console.log('incomingCall prop changed:', incomingCall);
+    
     if (incomingCall && webrtcService.current) {
       // Agar offer bor bo'lsa, bu offer-received signal
       if (incomingCall.offer) {
@@ -354,6 +454,7 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
         setIsInCall(true); // Qabul qiluvchi tomonida call boshlandi
       } else {
         // Bu call:incoming signal
+        console.log('call:incoming signal, setting callerInfo');
         setCallerInfo({
           callerId: incomingCall.callerId,
           callerName: incomingCall.callerName,
@@ -442,7 +543,7 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
   const handleRejectCall = () => {
     if (webrtcService.current) {
       webrtcService.current.rejectCall();
-      webrtcService.current.cleanup(); // WebRTC service ni tozalash
+      // Cleanup qilmaslik kerak, service saqlanib qolishi kerak
     }
     setIsWaitingForAnswer(false);
     setIsIncomingCall(false);
@@ -453,7 +554,7 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
   const handleEndCall = () => {
     if (webrtcService.current) {
       webrtcService.current.endCall();
-      webrtcService.current.cleanup(); // WebRTC service ni tozalash
+      // Cleanup qilmaslik kerak, service saqlanib qolishi kerak
     }
     setIsInCall(false);
     setIsIncomingCall(false);
@@ -479,6 +580,7 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
   };
 
   if (isIncomingCall && callerInfo) {
+    console.log('Rendering incoming call modal for:', callerInfo.callerName);
     return (
       <IncomingCallModal>
         <CallerInfo>
@@ -496,6 +598,8 @@ const VideoCall = ({ socket, currentUser, targetUser, onClose, incomingCall, web
         </CallButtons>
       </IncomingCallModal>
     );
+  } else {
+    console.log('Not rendering incoming call modal. isIncomingCall:', isInCall, 'callerInfo:', callerInfo);
   }
 
   // Agar targetUser bo'lsa va call boshlanmagan bo'lsa, call boshlash tugmasini ko'rsatish

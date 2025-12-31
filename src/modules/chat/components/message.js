@@ -14,6 +14,7 @@ import {
 } from "react-icons/bs";
 import { FaPen } from "react-icons/fa";
 import { IoArrowUndoSharp } from "react-icons/io5";
+import { FiClock, FiAlertCircle } from "react-icons/fi";
 import { socket } from "services/socket";
 import {
   getChatLogo,
@@ -32,6 +33,8 @@ export default function Message({
   setReadedMessage,
 }) {
   const [isRead, setIsRead] = useState(false);
+  const [clickCount, setClickCount] = useState(0);
+  const [clickTimer, setClickTimer] = useState(null);
   const { getMe } = useGetMe();
   const messageRef = useRef(null);
   const replayTo = useRef(null);
@@ -85,6 +88,15 @@ export default function Message({
       setIsRead(true);
     }
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (clickTimer) {
+        clearTimeout(clickTimer);
+      }
+    };
+  }, [clickTimer]);
+
   useEffect(() => {
     if (!messageRef.current || isRead) return;
     const observer = new IntersectionObserver((entries) => {
@@ -219,6 +231,30 @@ export default function Message({
       ?.scrollIntoView({ behavior: "smooth", block: "end", inline: "nearest" });
   };
 
+  // Double click handler for quick reply
+  const handleDoubleClick = (e) => {
+    e.stopPropagation();
+    
+    setClickCount(prev => prev + 1);
+    
+    // Clear previous timer
+    if (clickTimer) {
+      clearTimeout(clickTimer);
+    }
+    
+    // Set new timer
+    const timer = setTimeout(() => {
+      if (clickCount === 1) {
+        // This is the second click - trigger double click
+        setSelectedMessage({ action: "replay", message });
+        messageInput.current.focus();
+      }
+      setClickCount(0);
+    }, 300);
+    
+    setClickTimer(timer);
+  };
+
   return (
     <div
       ref={
@@ -227,6 +263,7 @@ export default function Message({
           : messageRef
       }
       onMouseDown={(e) => handletouch(e, message)}
+      onClick={handleDoubleClick}
       id={message._id}
       className={classNames("one-chat-one-message", {
         own: message.sender._id == getMe._id,
@@ -270,10 +307,24 @@ export default function Message({
         <span className="one-chat-one-message-message">{message.content}</span>
         <span className="one-chat-one-message-date">
           {format(new Date(message.createdAt), "HH:mm")}{" "}
-          {isRead && message.sender._id === getMe._id ? (
-            <BiCheckDouble size={20} />
-          ) : (
-            message.sender._id === getMe._id && <BiCheck size={20} />
+          {message.sender._id === getMe._id && (
+            <span className="message-status">
+              {message.status === 'sending' && (
+                <FiClock size={16} className="status-sending" />
+              )}
+              {message.status === 'sent' && (
+                <BiCheck size={20} className="status-sent" />
+              )}
+              {message.status === 'error' && (
+                <FiAlertCircle size={16} className="status-error" />
+              )}
+              {!message.status && isRead && (
+                <BiCheckDouble size={20} className="status-read" />
+              )}
+              {!message.status && !isRead && (
+                <BiCheck size={20} className="status-delivered" />
+              )}
+            </span>
           )}
         </span>
       </div>

@@ -1,0 +1,304 @@
+/* Universal Dialog Styles */
+.universal-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.universal-dialog {
+  background: linear-gradient(135deg, #36393f 0%, #2f3136 100%);
+  border-radius: 16px;
+  box-shadow: 
+    0 20px 25px -5px rgba(0, 0, 0, 0.3),
+    0 10px 10px -5px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: hidden;
+  animation: slideUp 0.3s ease-out;
+}
+
+/* Dialog Sizes */
+.universal-dialog--small {
+  width: 400px;
+}
+
+.universal-dialog--medium {
+  width: 500px;
+}
+
+.universal-dialog--large {
+  width: 700px;
+}
+
+.universal-dialog--fullscreen {
+  width: 90vw;
+  height: 90vh;
+}
+
+/* Dialog Header */
+.universal-dialog__header {
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.universal-dialog__title {
+  margin: 0;
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Dialog Close Button */
+.universal-dialog__close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  color: #b9bbbe;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 1;
+}
+
+.universal-dialog__close:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  transform: scale(1.1);
+}
+
+/* Dialog Content */
+.universal-dialog__content {
+  padding: 24px;
+  color: #dcddde;
+  overflow-y: auto;
+  max-height: calc(90vh - 100px);
+}
+
+/* Form Elements in Dialog */
+.universal-dialog .form-group {
+  margin-bottom: 20px;
+}
+
+.universal-dialog .form-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #b9bbbe;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.universal-dialog .form-input,
+.universal-dialog .form-textarea {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 16px;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.universal-dialog .form-input:focus,
+.universal-dialog .form-textarea:focus {
+  outline: none;
+  border-color: #5865f2;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(88, 101, 242, 0.1);
+}
+
+.universal-dialog .form-input::placeholder,
+.universal-dialog .form-textarea::placeholder {
+  color: #72767d;
+}
+
+.universal-dialog .form-textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+/* Button Styles */
+.universal-dialog .dialog-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.universal-dialog .btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.universal-dialog .btn--primary {
+  background: linear-gradient(135deg, #5865f2 0%, #4752c4 100%);
+  color: white;
+}
+
+.universal-dialog .btn--primary:hover {
+  background: linear-gradient(135deg, #4752c4 0%, #3c45a5 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(88, 101, 242, 0.3);
+}
+
+.universal-dialog .btn--secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #b9bbbe;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.universal-dialog .btn--secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.universal-dialog .btn--danger {
+  background: linear-gradient(135deg, #ed4245 0%, #c03538 100%);
+  color: white;
+}
+
+.universal-dialog .btn--danger:hover {
+  background: linear-gradient(135deg, #c03538 0%, #a0282b 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(237, 66, 69, 0.3);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .universal-dialog-overlay {
+    padding: 10px;
+  }
+  
+  .universal-dialog--small,
+  .universal-dialog--medium,
+  .universal-dialog--large {
+    width: 100%;
+    max-width: 400px;
+  }
+  
+  .universal-dialog__header {
+    padding: 20px 20px 12px;
+  }
+  
+  .universal-dialog__content {
+    padding: 20px;
+  }
+  
+  .universal-dialog__title {
+    font-size: 18px;
+  }
+  
+  .universal-dialog .dialog-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .universal-dialog .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Dark theme adjustments */
+@media (prefers-color-scheme: light) {
+  .universal-dialog {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    box-shadow: 
+      0 20px 25px -5px rgba(0, 0, 0, 0.1),
+      0 10px 10px -5px rgba(0, 0, 0, 0.04),
+      0 0 0 1px rgba(0, 0, 0, 0.05);
+  }
+  
+  .universal-dialog__header {
+    background: rgba(0, 0, 0, 0.02);
+    border-bottom-color: rgba(0, 0, 0, 0.1);
+  }
+  
+  .universal-dialog__title {
+    color: #2c3e50;
+  }
+  
+  .universal-dialog__content {
+    color: #4a5568;
+  }
+  
+  .universal-dialog .form-label {
+    color: #718096;
+  }
+  
+  .universal-dialog .form-input,
+  .universal-dialog .form-textarea {
+    background: rgba(0, 0, 0, 0.02);
+    border-color: rgba(0, 0, 0, 0.1);
+    color: #2c3e50;
+  }
+  
+  .universal-dialog .form-input:focus,
+  .universal-dialog .form-textarea:focus {
+    border-color: #5865f2;
+    background: rgba(88, 101, 242, 0.05);
+  }
+  
+  .universal-dialog .form-input::placeholder,
+  .universal-dialog .form-textarea::placeholder {
+    color: #a0aec0;
+  }
+  
+  .universal-dialog .dialog-actions {
+    border-top-color: rgba(0, 0, 0, 0.1);
+  }
+}
